@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Линия Жизни</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><line x1='50' y1='15' x2='50' y2='85' stroke='white' stroke-width='3'/><circle cx='50' cy='35' r='8' fill='%23ff3131'/><circle cx='50' cy='55' r='8' fill='%2339ff14'/><circle cx='50' cy='75' r='8' fill='%23ffe600'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><line x1='50' y1='15' x2='50' y2='85' stroke='white' stroke-width='3'/><circle cx='50' cy='35' r='8' fill='%23ff3131'/><circle cx='50' cy='55' r='8' fill='%2339ff14'/><circle cx='50' cy='75' r='8' fill='%23ffe600'/></svg>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Линия Жизни">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #ddd;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: #000;
+            padding: 10px 10px 0;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .header h1 {
+            text-align: center;
+            font-weight: 300;
+            font-size: 1.4em;
+            letter-spacing: 3px;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        .tabs { display: flex; gap: 0; }
+        .tab {
+            flex: 1;
+            padding: 12px 6px;
+            text-align: center;
+            font-size: 1.2em;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #444;
+            border-bottom: 2px solid transparent;
+            transition: 0.15s;
+        }
+        .tab.active { color: #fff; border-bottom: 2px solid #fff; }
+        .tab:active { color: #fff; }
+        .tab-content { display: none; padding: 5px 0 40px; }
+        .tab-content.active { display: block; }
+
+        .canvas-container { width: 100%; overflow-x: auto; padding: 5px 0; position: relative; }
+        canvas { display: block; margin: 0 auto; background: #000; }
+        .zoom-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        .zoom-bar label { font-size: 0.7em; color: #555; white-space: nowrap; }
+        .zoom-bar input[type=range] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            outline: none;
+        }
+        .zoom-bar input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            border: 2px solid #000;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 12px 16px;
+            z-index: 200;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 250px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+        }
+        .tooltip.show { opacity: 1; }
+        .tooltip .tt-title { font-size: 1em; font-weight: bold; color: #fff; margin-bottom: 4px; }
+        .tooltip .tt-date { font-size: 0.8em; color: #888; margin-bottom: 2px; }
+        .tooltip .tt-cat {
+            font-size: 0.75em; font-weight: bold; display: inline-block;
+            padding: 2px 8px; border-radius: 8px; margin-bottom: 4px; color: #000;
+        }
+        .tooltip .tt-desc { font-size: 0.8em; color: #aaa; line-height: 1.3; }
+
+        .list-section { padding: 5px 10px; max-width: 500px; margin: 0 auto; }
+        .list-top { display: flex; justify-content: flex-start; margin-bottom: 10px; }
+        .btn-add-small {
+            padding: 8px 14px; background: #fff; color: #000;
+            border: none; border-radius: 8px; font-size: 0.85em; font-weight: bold; cursor: pointer;
+        }
+        .btn-add-small:active { background: #ccc; }
+        .filter-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .filter-chip {
+            padding: 5px 10px; border-radius: 14px; font-size: 0.7em; font-weight: bold;
+            cursor: pointer; border: 1px solid transparent; color: #000; transition: 0.1s; white-space: nowrap;
+        }
+        .filter-chip.dimmed { opacity: 0.35; }
+        .list-item {
+            display: flex; align-items: center; padding: 12px; margin-bottom: 6px;
+            background: #0a0a0a; border-radius: 10px; border: 1px solid #1a1a1a; cursor: pointer; transition: 0.1s;
+        }
+        .list-item:active { background: #111; border-color: #333; }
+        .list-dot {
+            width: 10px; height: 10px; border-radius: 50%; margin-right: 12px;
+            flex-shrink: 0; box-shadow: 0 0 8px currentColor;
+        }
+        .list-dot.period-dot { border-radius: 3px; }
+        .list-info { flex: 1; min-width: 0; }
+        .list-info .ltitle { font-size: 1em; font-weight: bold; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .list-info .ldate { font-size: 0.75em; color: #777; }
+        .list-delete {
+            background: none; border: none; color: #500; font-size: 1.2em;
+            padding: 5px 8px; cursor: pointer; flex-shrink: 0;
+        }
+        .list-delete:active { color: #f00; }
+
+        .cat-section { padding: 10px; max-width: 500px; margin: 0 auto; }
+        .cat-chip {
+            display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px;
+            border-radius: 20px; margin: 4px; font-size: 0.85em; font-weight: bold; color: #000; cursor: pointer; transition: 0.1s;
+        }
+        .cat-chip .cat-delete { font-size: 0.9em; opacity: 0.6; cursor: pointer; }
+        .cat-chip .cat-delete:active { opacity: 1; }
+        .cat-chip:active { filter: brightness(1.2); }
+        .add-cat-row { display: flex; gap: 8px; margin-top: 15px; align-items: center; flex-wrap: wrap; }
+        .add-cat-row input {
+            flex: 1; min-width: 120px; padding: 10px; background: #1a1a1a;
+            border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 0.9em;
+        }
+        .color-palette { display: flex; gap: 5px; flex-wrap: wrap; }
+        .color-swatch {
+            width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; transition: 0.1s;
+        }
+        .color-swatch.selected { border-color: #fff; box-shadow: 0 0 10px currentColor; }
+        .btn-add-cat {
+            padding: 10px 16px; background: #fff; color: #000; border: none;
+            border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 0.85em;
+        }
+        .btn-add-cat:active { background: #ccc; }
+
+        .export-section { padding: 20px 10px; max-width: 500px; margin: 0 auto; text-align: center; }
+        .export-section p { color: #666; font-size: 0.85em; margin-bottom: 20px; line-height: 1.5; }
+        .btn-export-big {
+            padding: 14px 30px; background: #fff; color: #000; border: none;
+            border-radius: 12px; font-size: 1.1em; font-weight: bold; cursor: pointer;
+        }
+        .btn-export-big:active { background: #ccc; }
+
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #111; padding: 20px; border-radius: 16px; width: 93%;
+            max-width: 420px; max-height: 85vh; overflow-y: auto; border: 1px solid #222;
+        }
+        .modal-content h3 { color: #fff; margin-bottom: 12px; font-size: 1.2em; }
+        .modal-content label { display: block; font-size: 0.78em; color: #888; margin: 8px 0 3px; }
+        .modal-content input, .modal-content select, .modal-content textarea {
+            width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333;
+            border-radius: 8px; color: #fff; font-size: 1em; margin-bottom: 5px;
+        }
+        .modal-content textarea { height: 55px; resize: vertical; }
+        .type-toggle { display: flex; gap: 8px; margin: 10px 0; }
+        .type-toggle button {
+            flex: 1; padding: 10px; background: #1a1a1a; color: #888;
+            border: 1px solid #333; border-radius: 8px; cursor: pointer; font-size: 0.9em;
+        }
+        .type-toggle button.active { background: #fff; color: #000; border-color: #fff; font-weight: bold; }
+        .row { display: flex; gap: 6px; }
+        .row input { flex: 1; }
+        .row input.short { flex: 0.5; }
+        .btn-save {
+            width: 100%; padding: 12px; background: #fff; color: #000;
+            border: none; border-radius: 10px; font-size: 1em; font-weight: bold; margin-top: 10px; cursor: pointer;
+        }
+        .btn-cancel {
+            width: 100%; padding: 10px; background: none; color: #666;
+            border: none; font-size: 0.9em; margin-top: 5px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>⚡ ЛИНИЯ ЖИЗНИ</h1>
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('line')">🔴</button>
+        <button class="tab" onclick="switchTab('events')">📋</button>
+        <button class="tab" onclick="switchTab('categories')">🎨</button>
+        <button class="tab" onclick="switchTab('export')">📤</button>
+    </div>
+</div>
+<div class="tab-content active" id="tab-line">
+    <div class="zoom-bar">
+        <label>🔍</label>
+        <input type="range" id="zoomSlider" min="3" max="80" value="32" oninput="updateZoom()">
+        <label id="zoomLabel">100%</label>
+    </div>
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+<div class="tab-content" id="tab-events">
+    <div class="list-section">
+        <div class="list-top"><button class="btn-add-small" onclick="openAddModal()">+ Добавить</button></div>
+        <div class="filter-bar" id="filterBar"></div>
+        <div id="eventList"></div>
+    </div>
+</div>
+<div class="tab-content" id="tab-categories">
+    <div class="cat-section">
+        <p style="color:#555;font-size:0.75em;margin-bottom:10px;">Нажми на категорию, чтобы переименовать. Крестик — удалить.</p>
+        <div id="catList"></div>
+        <div class="add-cat-row">
+            <input type="text" id="newCatName" placeholder="Новая категория">
+            <div class="color-palette" id="colorPalette"></div>
+            <button class="btn-add-cat" onclick="addCategory()">+</button>
+        </div>
+    </div>
+</div>
+<div class="tab-content" id="tab-export">
+    <div class="export-section">
+        <p>Скачай файл со всеми данными, чтобы отправить психологу или сохранить копию.</p>
+        <button class="btn-export-big" onclick="exportFile()">📤 Скачать файл</button>
+    </div>
+</div>
+<div class="tooltip" id="tooltip">
+    <div class="tt-cat" id="ttCat"></div>
+    <div class="tt-title" id="ttTitle"></div>
+    <div class="tt-date" id="ttDate"></div>
+    <div class="tt-desc" id="ttDesc"></div>
+</div>
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <h3 id="addTitle">Новое событие</h3>
+        <div class="type-toggle">
+            <button id="tEvent" class="active" onclick="setAddType('event')">📍 Событие</button>
+            <button id="tPeriod" onclick="setAddType('period')">📊 Период</button>
+        </div>
+        <label>Категория</label>
+        <select id="catSelect"></select>
+        <div id="fieldsEvent">
+            <label>Дата</label>
+            <div class="row">
+                <input type="number" id="evDay" placeholder="День" min="1" max="31" class="short">
+                <input type="number" id="evMonth" placeholder="Месяц" min="1" max="12" class="short">
+                <input type="number" id="evYear" placeholder="Год" min="1900" max="2100">
+            </div>
+            <small style="color:#555;">Можно только год или год+месяц</small>
+        </div>
+        <div id="fieldsPeriod" style="display:none;">
+            <label>Начало</label>
+            <div class="row">
+                <input type="number" id="pStartDay" placeholder="День" min="1" max="31" class="short">
+                <input type="number" id="pStartMonth" placeholder="Месяц" min="1" max="12" class="short">
+                <input type="number" id="pStartYear" placeholder="Год" min="1900" max="2100">
+            </div>
+            <label>Конец</label>
+            <div class="row">
+                <input type="number" id="pEndDay" placeholder="День" min="1" max="31" class="short">
+                <input type="number" id="pEndMonth" placeholder="Месяц" min="1" max="12" class="short">
+                <input type="number" id="pEndYear" placeholder="Год" min="1900" max="2100">
+            </div>
+            <small style="color:#555;">Можно указать полную дату или только год/месяц</small>
+        </div>
+        <label>Название</label>
+        <input type="text" id="titleInput" placeholder="Коротко о событии">
+        <label>Описание</label>
+        <textarea id="descInput" placeholder="Пара строк..."></textarea>
+        <input type="hidden" id="editIndex" value="-1">
+        <button class="btn-save" onclick="saveEntry()">Сохранить</button>
+        <button class="btn-cancel" onclick="closeAddModal()">Отмена</button>
+    </div>
+</div>
+<script>
+    // Вшитые данные
+    var EMBEDDED_CATS = [{"name":"Тепло / радость","color":"#ffe600"},{"name":"Рост / Надежда / Ресурс","color":"#39ff14"},{"name":"Боль / Страдание","color":"#ff3131"},{"name":"Пустота / Холод","color":"#00bfff"},{"name":"Травма / Отвержение","color":"#cccccc"},{"name":"Бунт / Сила / Границы","color":"#bf40ff"},{"name":"Тревога / Хаос","color":"#ff8c00"}];
+    var EMBEDDED_ENTRIES = [{"type":"event","category":"Рост / Надежда / Ресурс","title":"Я появилась на свет","desc":"я родилась в роддоме №1 (Татарская АССР). Недоношенная, 2600 г, 51 см. Начало моей жизни","day":19,"month":7,"year":1990},{"type":"event","category":"Тепло / радость","title":"Ночёвка в лесу","desc":"Костёр, шалаш из веток, я лежу рядом с костром.","day":null,"month":null,"year":1992},{"type":"event","category":"Тепло / радость","title":"Поездка в огород на велосипеде","desc":"Еду с папой на велосипеде, пою песенки через кукурузное поле.","day":null,"month":null,"year":1994},{"type":"event","category":"Травма / Отвержение","title":"Коляска с сестрой","desc":"Меня обвинили, что я перевернула коляску и чуть не убила сестру. Помню только красную коляску.","day":null,"month":10,"year":1993},{"type":"period","category":"Пустота / Холод","title":"Отсутствие детского сада","desc":"Папа имел льготы на садик, но не воспользовался. Помогал другим, а своим — нет.","startMonth":null,"startYear":1993,"endMonth":null,"endYear":1997,"_layer":0},{"type":"period","category":"Пустота / Холод","title":"Ответственность за младших","desc":"С 5 лет гуляю с младшими, очень редко одна. Если они шалят, повредились — виновата я.","startMonth":null,"startYear":1995,"endMonth":null,"endYear":2002,"_layer":1},{"type":"event","category":"Боль / Страдание","title":"Прилипла языком к перилам","desc":"Зимой лизнула железную перилу, язык примёрз. Мамы нет, оторвала сама, было больно.","day":null,"month":12,"year":1998},{"type":"period","category":"Тревога / Хаос","title":"Мама таскала меня везде","desc":"Мама с подругой уходили «в гости», а мы с её дочкой гуляли во дворе. Теперь понимаю, зачем.","startMonth":null,"startYear":1996,"endMonth":null,"endYear":2001,"_layer":2},{"type":"event","category":"Травма / Отвержение","title":"«Ты не наша»","desc":"Бабушка (папина мама) говорит мне: «Ты не наша».","day":null,"month":null,"year":1996},{"type":"event","category":"Тепло / радость","title":"Белорусский праздник","desc":"Бабуля взяла на праздник. Я танцевала, участвовала в конкурсах. Бабушке сказалаи про меня: «живая, активная, нестеснительная».","day":null,"month":null,"year":1997},{"type":"period","category":"Тревога / Хаос","title":"Карате в 7 лет","desc":"Мама водила меня на карате. Я получила жёлтый пояс, садилась на шпагат. Мама с инструктором закрывались в кабинете, а я бродила по коридорам.","startDay":null,"startMonth":null,"startYear":1997,"endDay":null,"endMonth":null,"endYear":1997,"_layer":3},{"type":"event","category":"Тепло / радость","title":"Бражка","desc":"Попросила дедушкин квас, а он дал бражку. Было противно. Сейчас понимаю, что это была шутка взрослого.","day":null,"month":null,"year":1993},{"type":"event","category":"Пустота / Холод","title":"Первая двойка","desc":"Знала ответ, тянула руку, меня не спросили, поставили двойку. Родители не заступились.","day":null,"month":2,"year":1998},{"type":"event","category":"Боль / Страдание","title":"Бронхит в 1-м классе","desc":"Болела бронхитом, учитель приносила задания, делала уроки сама. Родителей не было, чувствовала себя одна в пустой квартире.","day":null,"month":1,"year":1998},{"type":"event","category":"Травма / Отвержение","title":"Дедушка выбросил игрушки","desc":"Пришла из школы. Дедушка собирал игрушки в мешок. Я просила не выбрасывать. Он спустил их в мусоропровод. Там были мои игрушки. Младшие разбросали, а наказали всех.","day":null,"month":null,"year":1998},{"type":"period","category":"Боль / Страдание","title":"Учитель била по рукам за почерк","desc":"Учительница била линейкой по рукам за корявый почерк и грязь в тетради.","startDay":null,"startMonth":null,"startYear":1998,"endDay":null,"endMonth":null,"endYear":1999,"_layer":0},{"type":"event","category":"Тепло / радость","title":"Изменила почерк","desc":"Начала писать мелко, как дедушка. Учитель жаловалась, что не видит даже в очках с лупой.","day":null,"month":null,"year":2000},{"type":"period","category":"Тепло / радость","title":"Орден милосердия","desc":"Учила жестовую речь, общалась со слепой девочкой. Поняла, что буллинг по внешности — глупость.","startDay":null,"startMonth":null,"startYear":2000,"endDay":null,"endMonth":null,"endYear":2001,"_layer":0},{"type":"period","category":"Тепло / радость","title":"Тусовки в кабинете","desc":"Чаепития, дежурства, игры с бутылками. Я была своей, могла быть собой. Светлое время.","startDay":null,"startMonth":null,"startYear":2000,"endDay":null,"endMonth":null,"endYear":2002,"_layer":3},{"type":"event","category":"Тревога / Хаос","title":"Конфликт в 5-м классе","desc":"Одноклассницы требовали бросить дружбу с девочкой из «вражеского» класса. Я отказалась, меня травили.","day":null,"month":null,"year":2001},{"type":"event","category":"Боль / Страдание","title":"Принуждение есть салат с маслом","desc":"Мы с сестрой перелили масло в салате. Отец заставил нас есть одних. Меня рвало. С тех пор отвращение к жирному.","day":null,"month":null,"year":2001},{"type":"event","category":"Тепло / радость","title":"Друг Борис","desc":"Друг признался в любви, я сказала «мы просто друзья», он перестал дружить.","day":null,"month":null,"year":2000},{"type":"event","category":"Тепло / радость","title":"Илья на горке","desc":"Илья признался, я отказала, он лёг на снег, мы с Настей везли его домой на ледянках.","day":null,"month":null,"year":2001},{"type":"event","category":"Тепло / радость","title":"Вова Валеев","desc":"Задирался, прижимал в туалете. Девчонки хихикали и выручали друг друга. Подростковая игра.","day":null,"month":null,"year":2002},{"type":"event","category":"Тепло / радость","title":"Бетонные зонтики и собака","desc":"Залезли на крышу туалета, прыгали по зонтикам, затащили собаку, спускали в куртке. Весело, дружно.","day":null,"month":1,"year":2002},{"type":"event","category":"Тепло / радость","title":"Прятки в фонтане","desc":"Зимняя прогулка с друзьями, снег, звёзды, придумали F1 и F2. Тёплое, светлое воспоминание.","day":null,"month":2,"year":2002},{"type":"event","category":"Травма / Отвержение","title":"Перцовый баллончик","desc":"Младшие распылили в комнате папин перцовый баллончик. Меня ругали, хотя я была в школе.","day":null,"month":4,"year":2002},{"type":"event","category":"Бунт / Сила / Границы","title":"Окно и озарение","desc":"Мысль выйти в окно, чтобы всем стало легче. Потом поняла: «Почему я должна уходить? Пусть уходят они».","day":null,"month":6,"year":2002},{"type":"event","category":"Тревога / Хаос","title":"Переезд","desc":"Переехали в служебную квартиру отца. Потеря друзей, комната с сестрой (брату отдельно).","day":null,"month":5,"year":2003},{"type":"event","category":"Травма / Отвержение","title":"Перевели в Е-класс (коррекционный)","desc":"Попала в сильный Г-класс, через 2 недели перевели в проблемный Е-класс. Унижения, мальчики вешали прокладки на стены.","day":null,"month":9,"year":2003},{"type":"event","category":"Бунт / Сила / Границы","title":"Бабушка заступилась","desc":"Бабушка (мамина мама) настояла, чтобы меня вернули в Г-класс. Один из немногих случаев заступничества.","day":null,"month":10,"year":2003},{"type":"period","category":"Пустота / Холод","title":"Мама ушла в компьютерные игры","desc":"После переезда мама постоянно играла в компьютер. Просыпаешься — она за компьютером, приходишь — она за компьютером.","startDay":null,"startMonth":null,"startYear":2008,"endDay":null,"endMonth":null,"endYear":2015,"_layer":0},{"type":"period","category":"Пустота / Холод","title":"Папа требовал быт от детей","desc":"Папа требовал готовить, убирать, стирать. Говорил: «кто вас замуж возьмёт, если не умеете».","startDay":null,"startMonth":null,"startYear":2013,"endDay":null,"endMonth":null,"endYear":2015,"_layer":1},{"type":"period","category":"Боль / Страдание","title":"Папа «хватит жрать»","desc":"Тело меняется, набираю вес. Папа говорит: «хватит жрать», «посмотри на себя в зеркало».","startDay":null,"startMonth":null,"startYear":2003,"endDay":null,"endMonth":null,"endYear":2005,"_layer":0},{"type":"event","category":"Пустота / Холод","title":"Английский с нуля (7 класс)","desc":"Пришла в новую школу, английский не знала (учила немецкий). Учитель быстро объяснила алфавит, тройка за четверть.","day":null,"month":9,"year":2003}];
+    var EMBEDDED_ZOOM = 32;
+</script>
+<script>
+
+    const DEFAULT_CATS = [
+        { name: 'Радость',    color: '#ffe600' },
+        { name: 'Рост',       color: '#39ff14' },
+        { name: 'Боль',       color: '#ff3131' },
+        { name: 'Холод',      color: '#00bfff' },
+        { name: 'Отвержение', color: '#cccccc' },
+        { name: 'Бунт',       color: '#bf40ff' },
+        { name: 'Тревога',    color: '#ff8c00' }
+    ];
+
+    const EXTRA_COLORS = [
+        '#ff6b9d','#ff9f43','#feca57','#54a0ff','#5f27cd',
+        '#01a3a4','#f368e0','#ff6348','#7bed9f','#70a1ff',
+        '#5352ed','#ff4757','#2ed573','#1e90ff','#ffa502',
+        '#eccc68','#a29bfe','#fd79a8','#00b894','#e17055'
+    ];
+
+    let categories = [], entries = [];
+    let addType = 'event', pixelsPerYear = 10;
+    let activeFilter = null, selectedNewColor = EXTRA_COLORS[0];
+    let hitAreas = [];
+
+    function loadData() {
+        let sc = localStorage.getItem('ll_cats');
+        categories = sc ? JSON.parse(sc) : JSON.parse(JSON.stringify(DEFAULT_CATS));
+        let se = localStorage.getItem('ll_entries');
+        entries = se ? JSON.parse(se) : [];
+    }
+    function saveCats() { localStorage.setItem('ll_cats', JSON.stringify(categories)); }
+    function saveEntries() { localStorage.setItem('ll_entries', JSON.stringify(entries)); }
+    function getCatColor(n) { let c = categories.find(x => x.name === n); return c ? c.color : '#888'; }
+
+    function entryToFraction(entry, isStart) {
+        if (entry.type === 'event') {
+            let y = entry.year;
+            let m = entry.month || 7;
+            let d = entry.day || 15;
+            return y + (m - 1) / 12 + (d - 1) / 365;
+        } else {
+            if (isStart) {
+                let y = entry.startYear;
+                let m = entry.startMonth || 1;
+                let d = entry.startDay || 1;
+                return y + (m - 1) / 12 + (d - 1) / 365;
+            } else {
+                let y = entry.endYear;
+                let m = entry.endMonth || 12;
+                let d = entry.endDay || 31;
+                return y + (m - 1) / 12 + Math.min(d - 1, 30) / 365;
+            }
+        }
+    }
+
+    function formatDate(e) {
+        if (e.type === 'event') {
+            let d = e.day ? String(e.day).padStart(2,'0') : null;
+            let m = e.month ? String(e.month).padStart(2,'0') : null;
+            let y = e.year;
+            if (d && m) return d + '.' + m + '.' + y;
+            if (m) return m + '.' + y;
+            return '' + y;
+        } else {
+            let sd = e.startDay ? String(e.startDay).padStart(2,'0') : null;
+            let sm = e.startMonth ? String(e.startMonth).padStart(2,'0') : null;
+            let ed = e.endDay ? String(e.endDay).padStart(2,'0') : null;
+            let em = e.endMonth ? String(e.endMonth).padStart(2,'0') : null;
+            let s = '';
+            if (sd && sm) s += sd + '.' + sm + '.';
+            else if (sm) s += sm + '.';
+            s += e.startYear + ' – ';
+            if (ed && em) s += ed + '.' + em + '.';
+            else if (em) s += em + '.';
+            s += e.endYear;
+            return s;
+        }
+    }
+
+    function showTooltip(entry, x, y) {
+        let tip = document.getElementById('tooltip');
+        let cat = document.getElementById('ttCat');
+        let title = document.getElementById('ttTitle');
+        let date = document.getElementById('ttDate');
+        let desc = document.getElementById('ttDesc');
+        let color = getCatColor(entry.category);
+        cat.textContent = entry.category;
+        cat.style.background = color;
+        title.textContent = entry.title;
+        date.textContent = formatDate(entry);
+        desc.textContent = entry.desc || '';
+        tip.classList.add('show');
+        let tipW = tip.offsetWidth || 250;
+        let tipH = tip.offsetHeight || 100;
+        let left = Math.min(x + 15, window.innerWidth - tipW - 15);
+        let top = Math.min(y + 15, window.innerHeight - tipH - 15);
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+        clearTimeout(tip._timeout);
+        tip._timeout = setTimeout(() => tip.classList.remove('show'), 3000);
+    }
+
+    function hideTooltip() {
+        document.getElementById('tooltip').classList.remove('show');
+    }
+
+    function renderCanvas() {
+        let canvas = document.getElementById('canvas');
+        let container = document.getElementById('canvasContainer');
+        let ctx = canvas.getContext('2d');
+        let showYears = pixelsPerYear >= 15;
+        let showMonths = pixelsPerYear >= 30;
+        hitAreas = [];
+
+        if (entries.length === 0) {
+            canvas.width = container.clientWidth || 400;
+            canvas.height = 300;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#555';
+            ctx.font = '16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Пока пусто.', canvas.width/2, canvas.height/2);
+            return;
+        }
+
+        let minFrac = Infinity, maxFrac = -Infinity;
+        entries.forEach(e => {
+            let s = entryToFraction(e, true);
+            let en = entryToFraction(e, false);
+            if (s < minFrac) minFrac = s;
+            if (en > maxFrac) maxFrac = en;
+        });
+        minFrac = Math.floor(minFrac) - 1;
+        maxFrac = Math.ceil(maxFrac) + 1;
+
+        let totalYears = maxFrac - minFrac;
+        let lineHeight = totalYears * pixelsPerYear;
+        let canvasWidth = container.clientWidth || 400;
+        let centerX = canvasWidth / 2;
+        let pt = 30, pb = 30;
+        let canvasHeight = lineHeight + pt + pb;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, pt);
+        ctx.lineTo(centerX, canvasHeight - pb);
+        ctx.stroke();
+
+        if (showYears) {
+            ctx.fillStyle = '#444';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            for (let y = Math.floor(minFrac); y <= Math.ceil(maxFrac); y++) {
+                let yPos = pt + (y - minFrac) * pixelsPerYear;
+                if (yPos < pt || yPos > canvasHeight - pb) continue;
+                ctx.fillText(y, centerX + 15, yPos + 4);
+                ctx.strokeStyle = '#1a1a1a';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(centerX - 5, yPos);
+                ctx.lineTo(centerX + 5, yPos);
+                ctx.stroke();
+                if (showMonths) {
+                    for (let m = 1; m <= 12; m++) {
+                        let myPos = pt + (y - minFrac + (m-1)/12) * pixelsPerYear;
+                        ctx.strokeStyle = '#111';
+                        ctx.beginPath();
+                        ctx.moveTo(centerX - 2, myPos);
+                        ctx.lineTo(centerX + 2, myPos);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        let periods = entries.filter(e => e.type === 'period');
+        periods.sort((a, b) => entryToFraction(a, true) - entryToFraction(b, true));
+        let layers = [];
+        periods.forEach(p => {
+            let ps = entryToFraction(p, true);
+            let pe = entryToFraction(p, false);
+            let placed = false;
+            for (let i = 0; i < layers.length; i++) {
+                let overlap = layers[i].some(q => {
+                    let qs = entryToFraction(q, true);
+                    let qe = entryToFraction(q, false);
+                    return !(pe <= qs || ps >= qe);
+                });
+                if (!overlap) {
+                    layers[i].push(p);
+                    p._layer = i;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                layers.push([p]);
+                p._layer = layers.length - 1;
+            }
+        });
+
+        let maxLayer = layers.length;
+        let barW = 8, barGap = 2;
+        let barStartX = centerX + 10;
+        let textStartX = barStartX + maxLayer * (barW + barGap) + 8;
+        let lineH = 14;
+        let textPositions = [];
+
+        periods.forEach(entry => {
+            let color = getCatColor(entry.category);
+            let yStart = pt + (entryToFraction(entry, true) - minFrac) * pixelsPerYear;
+            let yEnd = pt + (entryToFraction(entry, false) - minFrac) * pixelsPerYear;
+            let layer = entry._layer || 0;
+            let barX = barStartX + layer * (barW + barGap);
+            hitAreas.push({ x1: barX - 8, y1: yStart - 8, x2: barX + barW + 8, y2: yEnd + 8, entry: entry });
+            ctx.fillStyle = color;
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8;
+            ctx.fillRect(barX, yStart, barW, yEnd - yStart);
+            ctx.shadowBlur = 0;
+            let title = entry.title.length > 25 ? entry.title.substring(0,23)+'…' : entry.title;
+            let dateStr = formatDate(entry);
+            let idealTextY = yStart + 12;
+            let textY = idealTextY;
+            let textBottom = textY + lineH * 2;
+            for (let i = 0; i < textPositions.length; i++) {
+                let prev = textPositions[i];
+                let prevBottom = prev.y + lineH * 2;
+                if (!(textBottom <= prev.y || textY >= prevBottom)) {
+                    textY = prevBottom + 4;
+                    textBottom = textY + lineH * 2;
+                }
+            }
+            textPositions.push({ y: textY, entry: entry });
+            ctx.fillStyle = '#ccc';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(title, textStartX, textY);
+            ctx.fillStyle = '#777';
+            ctx.font = '9px sans-serif';
+            ctx.fillText(dateStr, textStartX, textY + lineH);
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 3]);
+            ctx.beginPath();
+            ctx.moveTo(barX + barW, yStart + 4);
+            ctx.lineTo(textStartX - 3, textY + 6);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1;
+        });
+
+        let events = entries.filter(e => e.type === 'event');
+        events.sort((a, b) => entryToFraction(a, true) - entryToFraction(b, true));
+        let eventsByYear = {};
+        events.forEach(e => {
+            let y = e.year;
+            if (!eventsByYear[y]) eventsByYear[y] = [];
+            eventsByYear[y].push(e);
+        });
+        for (let year in eventsByYear) {
+            let yearEvents = eventsByYear[year];
+            let count = yearEvents.length;
+            yearEvents.forEach((entry, i) => {
+                let baseY = pt + (entryToFraction(entry, true) - minFrac) * pixelsPerYear;
+                let color = getCatColor(entry.category);
+                let label = formatDate(entry);
+                let title = entry.title.length > 20 ? entry.title.substring(0,18)+'…' : entry.title;
+                let fullText = label + ' · ' + title;
+                let offset;
+                if (count === 1) { offset = 0; }
+                else if (count === 2) { offset = (i === 0) ? -10 : 10; }
+                else {
+                    let step = Math.min(16, 80 / count);
+                    let startOffset = -((count - 1) * step) / 2;
+                    offset = startOffset + i * step;
+                }
+                let actualY = baseY + offset;
+                hitAreas.push({ cx: centerX, cy: actualY, radius: 14, entry: entry });
+                if (Math.abs(offset) > 2) {
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, baseY);
+                    ctx.lineTo(centerX, actualY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = 1;
+                }
+                ctx.fillStyle = color;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 14;
+                ctx.beginPath();
+                ctx.arc(centerX, actualY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ccc';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'right';
+                let textX = centerX - 16;
+                ctx.fillText(fullText, textX, actualY - 10);
+            });
+        }
+
+        canvas.onclick = function(e) {
+            let rect = canvas.getBoundingClientRect();
+            let scaleX = canvas.width / rect.width;
+            let scaleY = canvas.height / rect.height;
+            let mx = (e.clientX - rect.left) * scaleX;
+            let my = (e.clientY - rect.top) * scaleY;
+            for (let area of hitAreas) {
+                if (area.radius) {
+                    let dx = mx - area.cx;
+                    let dy = my - area.cy;
+                    if (Math.sqrt(dx*dx + dy*dy) < area.radius) {
+                        showTooltip(area.entry, e.clientX, e.clientY);
+                        return;
+                    }
+                } else {
+                    if (mx >= area.x1 && mx <= area.x2 && my >= area.y1 && my <= area.y2) {
+                        showTooltip(area.entry, e.clientX, e.clientY);
+                        return;
+                    }
+                }
+            }
+            hideTooltip();
+        };
+    }
+
+    function updateZoom() {
+        pixelsPerYear = parseInt(document.getElementById('zoomSlider').value);
+        document.getElementById('zoomLabel').textContent = Math.round(pixelsPerYear / 10 * 100) + '%';
+        renderCanvas();
+    }
+
+    function renderFilterBar() {
+        let bar = document.getElementById('filterBar');
+        bar.innerHTML = '';
+        let allChip = document.createElement('span');
+        allChip.className = 'filter-chip' + (activeFilter === null ? '' : ' dimmed');
+        allChip.style.background = '#444';
+        allChip.textContent = 'Все';
+        allChip.onclick = () => { activeFilter = null; renderAll(); };
+        bar.appendChild(allChip);
+        categories.forEach(cat => {
+            let chip = document.createElement('span');
+            chip.className = 'filter-chip' + (activeFilter === cat.name ? '' : ' dimmed');
+            chip.style.background = cat.color;
+            chip.textContent = cat.name;
+            chip.onclick = () => { activeFilter = activeFilter === cat.name ? null : cat.name; renderAll(); };
+            bar.appendChild(chip);
+        });
+    }
+
+    function renderList() {
+        let listDiv = document.getElementById('eventList');
+        listDiv.innerHTML = '';
+        let filtered = entries.filter(e => !activeFilter || e.category === activeFilter);
+        let sorted = [...filtered].sort((a, b) => entryToFraction(a, true) - entryToFraction(b, true));
+        if (sorted.length === 0) {
+            listDiv.innerHTML = '<p style="color:#444;text-align:center;padding:20px;">Ничего нет</p>';
+            return;
+        }
+        sorted.forEach(entry => {
+            let realIndex = entries.indexOf(entry);
+            let color = getCatColor(entry.category);
+            let item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <div class="list-dot ${entry.type === 'period' ? 'period-dot' : ''}" style="background:${color}; color:${color};"></div>
+                <div class="list-info">
+                    <div class="ltitle">${entry.title}</div>
+                    <div class="ldate">${formatDate(entry)} · ${entry.category}</div>
+                </div>
+                <button class="list-delete" data-index="${realIndex}">✕</button>
+            `;
+            item.querySelector('.list-info').onclick = () => openEditModal(realIndex);
+            item.querySelector('.list-dot').onclick = () => openEditModal(realIndex);
+            item.querySelector('.list-delete').onclick = (e) => { e.stopPropagation(); deleteEntry(realIndex); };
+            listDiv.appendChild(item);
+        });
+    }
+
+    function deleteEntry(index) {
+        if (confirm('Удалить "' + entries[index].title + '"?')) {
+            entries.splice(index, 1);
+            saveEntries();
+            renderAll();
+        }
+    }
+
+    function renderAll() {
+        renderCanvas();
+        renderFilterBar();
+        renderList();
+        renderCatList();
+    }
+
+    function renderCatList() {
+        let list = document.getElementById('catList');
+        if (!list) return;
+        list.innerHTML = '';
+        categories.forEach((cat, i) => {
+            let chip = document.createElement('span');
+            chip.className = 'cat-chip';
+            chip.style.background = cat.color;
+            chip.innerHTML = `${cat.name} <span class="cat-delete" data-i="${i}">×</span>`;
+            chip.onclick = function(e) {
+                if (e.target.classList.contains('cat-delete')) return;
+                let newName = prompt('Новое название:', cat.name);
+                if (newName && newName.trim()) {
+                    let oldName = categories[i].name;
+                    categories[i].name = newName.trim();
+                    entries.forEach(e => { if (e.category === oldName) e.category = newName.trim(); });
+                    saveCats(); saveEntries(); renderAll();
+                }
+            };
+            chip.querySelector('.cat-delete').onclick = function(e) {
+                e.stopPropagation();
+                if (categories.length <= 1) { alert('Минимум 1 категория'); return; }
+                if (confirm('Удалить "' + cat.name + '"?')) {
+                    let name = cat.name;
+                    categories.splice(i, 1);
+                    entries.forEach(e => { if (e.category === name) e.category = categories[0].name; });
+                    saveCats(); saveEntries();
+                    if (activeFilter === name) activeFilter = null;
+                    renderAll();
+                }
+            };
+            list.appendChild(chip);
+        });
+        let palette = document.getElementById('colorPalette');
+        if (!palette) return;
+        palette.innerHTML = '';
+        EXTRA_COLORS.forEach(color => {
+            let swatch = document.createElement('div');
+            swatch.className = 'color-swatch' + (color === selectedNewColor ? ' selected' : '');
+            swatch.style.background = color;
+            swatch.style.color = color;
+            swatch.onclick = () => { selectedNewColor = color; renderCatList(); };
+            palette.appendChild(swatch);
+        });
+    }
+
+    function addCategory() {
+        let name = document.getElementById('newCatName').value.trim();
+        if (!name) { alert('Введи название'); return; }
+        if (categories.find(c => c.name === name)) { alert('Уже есть'); return; }
+        categories.push({ name, color: selectedNewColor });
+        saveCats();
+        document.getElementById('newCatName').value = '';
+        renderAll();
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        let map = { 'line': 0, 'events': 1, 'categories': 2, 'export': 3 };
+        document.querySelectorAll('.tab')[map[tabName]].classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+        if (tabName === 'line') renderCanvas();
+        if (tabName === 'events') { renderFilterBar(); renderList(); }
+        if (tabName === 'categories') renderCatList();
+    }
+
+    function setAddType(type) {
+        addType = type;
+        document.getElementById('tEvent').classList.toggle('active', type === 'event');
+        document.getElementById('tPeriod').classList.toggle('active', type === 'period');
+        document.getElementById('addTitle').textContent =
+            document.getElementById('editIndex').value >= 0 ?
+            (type === 'event' ? 'Редактировать событие' : 'Редактировать период') :
+            (type === 'event' ? 'Новое событие' : 'Новый период');
+        document.getElementById('fieldsEvent').style.display = type === 'event' ? 'block' : 'none';
+        document.getElementById('fieldsPeriod').style.display = type === 'period' ? 'block' : 'none';
+    }
+
+    function populateCatSelect() {
+        let sel = document.getElementById('catSelect');
+        sel.innerHTML = '';
+        categories.forEach(c => { let o = document.createElement('option'); o.value = c.name; o.textContent = c.name; sel.appendChild(o); });
+    }
+
+    function openAddModal() {
+        document.getElementById('editIndex').value = '-1';
+        populateCatSelect();
+        setAddType('event');
+        ['evDay','evMonth','evYear','pStartDay','pStartMonth','pStartYear','pEndDay','pEndMonth','pEndYear','titleInput','descInput'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('addModal').classList.add('active');
+    }
+
+    function openEditModal(index) {
+        let entry = entries[index];
+        if (!entry) return;
+        document.getElementById('editIndex').value = index;
+        populateCatSelect();
+        document.getElementById('catSelect').value = entry.category;
+        document.getElementById('titleInput').value = entry.title;
+        document.getElementById('descInput').value = entry.desc || '';
+        if (entry.type === 'event') {
+            setAddType('event');
+            document.getElementById('evDay').value = entry.day || '';
+            document.getElementById('evMonth').value = entry.month || '';
+            document.getElementById('evYear').value = entry.year || '';
+        } else {
+            setAddType('period');
+            document.getElementById('pStartDay').value = entry.startDay || '';
+            document.getElementById('pStartMonth').value = entry.startMonth || '';
+            document.getElementById('pStartYear').value = entry.startYear || '';
+            document.getElementById('pEndDay').value = entry.endDay || '';
+            document.getElementById('pEndMonth').value = entry.endMonth || '';
+            document.getElementById('pEndYear').value = entry.endYear || '';
+        }
+        document.getElementById('addModal').classList.add('active');
+    }
+
+    function closeAddModal() { document.getElementById('addModal').classList.remove('active'); }
+
+    function saveEntry() {
+        let cat = document.getElementById('catSelect').value;
+        let title = document.getElementById('titleInput').value.trim();
+        let desc = document.getElementById('descInput').value.trim();
+        let editIdx = parseInt(document.getElementById('editIndex').value);
+        if (!title) { alert('Введи название'); return; }
+        let newEntry = { type: addType, category: cat, title, desc };
+        if (addType === 'event') {
+            let d = parseInt(document.getElementById('evDay').value) || null;
+            let m = parseInt(document.getElementById('evMonth').value) || null;
+            let y = parseInt(document.getElementById('evYear').value);
+            if (!y) { alert('Укажи хотя бы год'); return; }
+            newEntry.day = d; newEntry.month = m; newEntry.year = y;
+        } else {
+            let sd = parseInt(document.getElementById('pStartDay').value) || null;
+            let sm = parseInt(document.getElementById('pStartMonth').value) || null;
+            let sy = parseInt(document.getElementById('pStartYear').value);
+            let ed = parseInt(document.getElementById('pEndDay').value) || null;
+            let em = parseInt(document.getElementById('pEndMonth').value) || null;
+            let ey = parseInt(document.getElementById('pEndYear').value);
+            if (!sy || !ey) { alert('Укажи год начала и конца'); return; }
+            newEntry.startDay = sd; newEntry.startMonth = sm; newEntry.startYear = sy;
+            newEntry.endDay = ed; newEntry.endMonth = em; newEntry.endYear = ey;
+        }
+        if (editIdx >= 0) { entries[editIdx] = newEntry; }
+        else { entries.push(newEntry); }
+        saveEntries(); closeAddModal(); renderAll();
+    }
+
+    function exportFile() {
+        // Получаем весь CSS
+        let css = document.querySelector('style').textContent;
+        
+        // Получаем весь JS (кроме exportFile самой)
+        let scripts = document.querySelectorAll('script');
+        let jsCode = '';
+        scripts.forEach(s => {
+            if (s.textContent && s.textContent.includes('function loadData()')) {
+                jsCode = s.textContent;
+            }
+        });
+        
+        // Экранируем данные для вставки в JS
+        let catsStr = JSON.stringify(categories);
+        let entriesStr = JSON.stringify(entries);
+        let zoomVal = pixelsPerYear;
+        
+        // Создаём новый HTML с нуля
+        let html = `<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Линия Жизни</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><line x1='50' y1='15' x2='50' y2='85' stroke='white' stroke-width='3'/><circle cx='50' cy='35' r='8' fill='%23ff3131'/><circle cx='50' cy='55' r='8' fill='%2339ff14'/><circle cx='50' cy='75' r='8' fill='%23ffe600'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><line x1='50' y1='15' x2='50' y2='85' stroke='white' stroke-width='3'/><circle cx='50' cy='35' r='8' fill='%23ff3131'/><circle cx='50' cy='55' r='8' fill='%2339ff14'/><circle cx='50' cy='75' r='8' fill='%23ffe600'/></svg>">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Линия Жизни">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <style>${css}</style>
+</head>
+<body>
+<div class="header">
+    <h1>⚡ ЛИНИЯ ЖИЗНИ</h1>
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('line')">🔴</button>
+        <button class="tab" onclick="switchTab('events')">📋</button>
+        <button class="tab" onclick="switchTab('categories')">🎨</button>
+        <button class="tab" onclick="switchTab('export')">📤</button>
+    </div>
+</div>
+<div class="tab-content active" id="tab-line">
+    <div class="zoom-bar">
+        <label>🔍</label>
+        <input type="range" id="zoomSlider" min="3" max="80" value="${zoomVal}" oninput="updateZoom()">
+        <label id="zoomLabel">100%</label>
+    </div>
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+<div class="tab-content" id="tab-events">
+    <div class="list-section">
+        <div class="list-top"><button class="btn-add-small" onclick="openAddModal()">+ Добавить</button></div>
+        <div class="filter-bar" id="filterBar"></div>
+        <div id="eventList"></div>
+    </div>
+</div>
+<div class="tab-content" id="tab-categories">
+    <div class="cat-section">
+        <p style="color:#555;font-size:0.75em;margin-bottom:10px;">Нажми на категорию, чтобы переименовать. Крестик — удалить.</p>
+        <div id="catList"></div>
+        <div class="add-cat-row">
+            <input type="text" id="newCatName" placeholder="Новая категория">
+            <div class="color-palette" id="colorPalette"></div>
+            <button class="btn-add-cat" onclick="addCategory()">+</button>
+        </div>
+    </div>
+</div>
+<div class="tab-content" id="tab-export">
+    <div class="export-section">
+        <p>Скачай файл со всеми данными, чтобы отправить психологу или сохранить копию.</p>
+        <button class="btn-export-big" onclick="exportFile()">📤 Скачать файл</button>
+    </div>
+</div>
+<div class="tooltip" id="tooltip">
+    <div class="tt-cat" id="ttCat"></div>
+    <div class="tt-title" id="ttTitle"></div>
+    <div class="tt-date" id="ttDate"></div>
+    <div class="tt-desc" id="ttDesc"></div>
+</div>
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <h3 id="addTitle">Новое событие</h3>
+        <div class="type-toggle">
+            <button id="tEvent" class="active" onclick="setAddType('event')">📍 Событие</button>
+            <button id="tPeriod" onclick="setAddType('period')">📊 Период</button>
+        </div>
+        <label>Категория</label>
+        <select id="catSelect"></select>
+        <div id="fieldsEvent">
+            <label>Дата</label>
+            <div class="row">
+                <input type="number" id="evDay" placeholder="День" min="1" max="31" class="short">
+                <input type="number" id="evMonth" placeholder="Месяц" min="1" max="12" class="short">
+                <input type="number" id="evYear" placeholder="Год" min="1900" max="2100">
+            </div>
+            <small style="color:#555;">Можно только год или год+месяц</small>
+        </div>
+        <div id="fieldsPeriod" style="display:none;">
+            <label>Начало</label>
+            <div class="row">
+                <input type="number" id="pStartDay" placeholder="День" min="1" max="31" class="short">
+                <input type="number" id="pStartMonth" placeholder="Месяц" min="1" max="12" class="short">
+                <input type="number" id="pStartYear" placeholder="Год" min="1900" max="2100">
+            </div>
+            <label>Конец</label>
+            <div class="row">
+                <input type="number" id="pEndDay" placeholder="День" min="1" max="31" class="short">
+                <input type="number" id="pEndMonth" placeholder="Месяц" min="1" max="12" class="short">
+                <input type="number" id="pEndYear" placeholder="Год" min="1900" max="2100">
+            </div>
+            <small style="color:#555;">Можно указать полную дату или только год/месяц</small>
+        </div>
+        <label>Название</label>
+        <input type="text" id="titleInput" placeholder="Коротко о событии">
+        <label>Описание</label>
+        <textarea id="descInput" placeholder="Пара строк..."></textarea>
+        <input type="hidden" id="editIndex" value="-1">
+        <button class="btn-save" onclick="saveEntry()">Сохранить</button>
+        <button class="btn-cancel" onclick="closeAddModal()">Отмена</button>
+    </div>
+</div>
+<script>
+    // Вшитые данные
+    var EMBEDDED_CATS = ${catsStr};
+    var EMBEDDED_ENTRIES = ${entriesStr};
+    var EMBEDDED_ZOOM = ${zoomVal};
+<\/script>
+<script>
+${jsCode}
+<\/script>
+<script>
+    // Переопределяем loadData для использования вшитых данных
+    var origLoadData = loadData;
+    loadData = function() {
+        categories = EMBEDDED_CATS;
+        entries = EMBEDDED_ENTRIES;
+        pixelsPerYear = EMBEDDED_ZOOM;
+    };
+    
+    // Запуск
+    loadData();
+    renderAll();
+    document.getElementById('zoomSlider').value = pixelsPerYear;
+    document.getElementById('zoomLabel').textContent = Math.round(pixelsPerYear / 10 * 100) + '%';
+    switchTab('line');
+<\/script>
+</body>
+</html>`;
+
+        let blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'lifeline_export.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert('✅ Готово! Файл сохранён. Отправь его психологу.');
+    }
+
+    // Запуск
+    loadData();
+    renderAll();
+    document.getElementById('zoomSlider').value = pixelsPerYear;
+    document.getElementById('zoomLabel').textContent = '100%';
+    switchTab('line');
+
+</script>
+<script>
+    // Переопределяем loadData для использования вшитых данных
+    var origLoadData = loadData;
+    loadData = function() {
+        categories = EMBEDDED_CATS;
+        entries = EMBEDDED_ENTRIES;
+        pixelsPerYear = EMBEDDED_ZOOM;
+    };
+    
+    // Запуск
+    loadData();
+    renderAll();
+    document.getElementById('zoomSlider').value = pixelsPerYear;
+    document.getElementById('zoomLabel').textContent = Math.round(pixelsPerYear / 10 * 100) + '%';
+    switchTab('line');
+</script>
+</body>
+</html>
