@@ -1,0 +1,1917 @@
+<html lang="ru"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Линия Жизни</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000; color: #ddd; min-height: 100vh; overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .header {
+            position: sticky; top: 0; z-index: 50; background: #000; padding: 10px 10px 0; border-bottom: 1px solid #1a1a1a;
+        }
+        .header h1 { text-align: center; font-weight: 300; font-size: 1.4em; letter-spacing: 3px; color: #fff; margin-bottom: 8px; }
+        .tabs { display: flex; gap: 0; }
+        .tab {
+            flex: 1; padding: 12px 6px; text-align: center; font-size: 1.2em; cursor: pointer; background: none;
+            border: none; color: #444; border-bottom: 2px solid transparent; transition: 0.15s;
+        }
+        .tab.active { color: #fff; border-bottom: 2px solid #fff; }
+        .tab-content { display: none; padding: 5px 0 40px; }
+        .tab-content.active { display: block; }
+
+        .canvas-wrapper { width: 100%; overflow-x: auto; padding: 5px 0; position: relative; -webkit-overflow-scrolling: touch; }
+        canvas { display: block; background: #000; cursor: pointer; touch-action: pan-x pan-y; }
+
+        .zoom-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; max-width: 500px; margin: 0 auto; }
+        .zoom-bar label { font-size: 0.7em; color: #555; white-space: nowrap; }
+        .zoom-bar input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; background: #333; border-radius: 2px; outline: none; }
+        .zoom-bar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; cursor: pointer; border: 2px solid #000; }
+        
+        .btn-pdf { padding: 6px 10px; background: #1a1a1a; color: #fff; border: 1px solid #333; border-radius: 6px; font-size: 0.8em; cursor: pointer; white-space: nowrap; }
+        .btn-pdf:active { background: #333; }
+
+        .list-section { padding: 5px 10px; max-width: 500px; margin: 0 auto; }
+        .btn { padding: 10px 14px; background: #fff; color: #000; border: none; border-radius: 8px; font-size: 0.9em; font-weight: bold; cursor: pointer; }
+        .btn:active { background: #ccc; }
+        .btn.secondary { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+        .btn.secondary.active { background: #fff; color: #000; border-color: #fff; }
+        
+        .sticky-panel {
+            position: sticky; top: 69px; 
+            background: #0a0a0a; z-index: 40;
+            padding: 10px; border-bottom: 1px solid #222;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+            display: flex; gap: 6px;
+        }
+        .sticky-panel .btn { flex: 1; text-align: center; padding: 10px 4px; font-size: 0.85em; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #111; padding: 20px; border-radius: 16px; width: 93%; max-width: 420px; max-height: 85vh; overflow-y: auto; border: 1px solid #222; }
+        .modal-content h3 { color: #fff; margin-bottom: 12px; font-size: 1.2em; }
+        .modal-content label { display: block; font-size: 0.78em; color: #888; margin: 8px 0 3px; }
+        .modal-content input, .modal-content select, .modal-content textarea { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 1em; margin-bottom: 5px; }
+        .modal-content input:disabled, .modal-content select:disabled { color: #666; border-color: #222; background: #0a0a0a; }
+        .type-toggle { display: flex; gap: 8px; margin: 10px 0; }
+        .type-toggle button { flex: 1; padding: 10px; background: #1a1a1a; color: #888; border: 1px solid #333; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
+        .type-toggle button.active { background: #fff; color: #000; border-color: #fff; font-weight: bold; }
+        .row { display: flex; gap: 6px; }
+        .row input { flex: 1; }
+        .row input.short { flex: 0.5; }
+
+        .tooltip {
+            position: fixed; background: #1a1a1a; border: 1px solid #444; border-radius: 12px; padding: 12px 16px;
+            z-index: 200; opacity: 0; transition: opacity 0.2s; max-width: 280px; box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+        .tooltip.show { opacity: 1; pointer-events: auto; }
+        .tooltip .tt-cat { font-size: 0.75em; font-weight: bold; display: inline-block; padding: 2px 8px; border-radius: 8px; margin-bottom: 4px; color: #000; }
+        .tooltip .tt-title { font-size: 1em; font-weight: bold; color: #fff; margin-bottom: 4px; }
+        .tooltip .tt-date { font-size: 0.8em; color: #888; margin-bottom: 2px; }
+        .tooltip .tt-desc { font-size: 0.8em; color: #aaa; line-height: 1.3; margin-bottom: 10px;}
+        
+        .tooltip-actions {
+            display: flex; justify-content: flex-end; gap: 10px;
+            border-top: 1px solid #333; padding-top: 8px; margin-top: 4px;
+        }
+        .tooltip-actions button {
+            background: none; border: none; cursor: pointer; font-size: 1.2em; padding: 4px 8px; border-radius: 6px;
+        }
+        .tooltip-actions button:hover { background: #333; }
+
+        .cat-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; border-bottom: 1px solid #222; }
+        .cat-color { width: 20px; height: 20px; border-radius: 50%; margin-right: 10px; flex-shrink: 0; }
+
+        .color-palette { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; margin-bottom: 15px; justify-content: center; }
+        .color-swatch {
+            width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+            border: 2px solid transparent; box-sizing: border-box;
+            transition: transform 0.1s;
+        }
+        .color-swatch:active { transform: scale(0.9); }
+        .color-swatch.selected {
+            border-color: #fff; box-shadow: 0 0 0 2px #000, 0 0 0 4px #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>⚡ ЛИНИЯ ЖИЗНИ</h1>
+    <div class="tabs">
+        <button class="tab" onclick="switchTab('line')">🔴</button>
+        <button class="tab" onclick="switchTab('events')">📋</button>
+        <button class="tab" onclick="switchTab('categories')">🎨</button>
+        <button class="tab active" onclick="switchTab('export')">📤</button>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-line">
+    <div class="zoom-bar">
+        <label>🔍</label>
+        <input type="range" id="zoomSlider" min="5" max="100" value="50" oninput="updateZoom()">
+        <label id="zoomLabel">100%</label>
+        <button class="btn-pdf" onclick="downloadCanvasPDF()">PDF линии</button>
+    </div>
+    <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="canvas" width="608" height="3850"></canvas>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-events">
+    <div class="sticky-panel">
+        <button class="btn" onclick="openAddModal()">+ Добавить</button>
+        <button class="btn secondary" id="btnOpenFilters" onclick="openFilterModal()">Фильтр</button>
+        <button class="btn secondary" onclick="downloadPDF()">Скачать PDF</button>
+    </div>
+
+    <div class="list-section">
+        <div id="eventList" style="color: #555;"><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> Я появился (ась) на свет <span style="color:#555; font-size:0.8em;">(19.07.1990)</span></span> 
+                <div>
+                    <button onclick="openAddModal(105)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(105)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> Амур <span style="color:#555; font-size:0.8em;">(1991 – 2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(99)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(99)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Ночёвка в лесу <span style="color:#555; font-size:0.8em;">(1992)</span></span> 
+                <div>
+                    <button onclick="openAddModal(0)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(0)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> Отсутствие детского сада <span style="color:#555; font-size:0.8em;">(1993 – 1997)</span></span> 
+                <div>
+                    <button onclick="openAddModal(3)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(3)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Бражка <span style="color:#555; font-size:0.8em;">(1993)</span></span> 
+                <div>
+                    <button onclick="openAddModal(10)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(10)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">●</span> Коляска с сестрой <span style="color:#555; font-size:0.8em;">(10.1993)</span></span> 
+                <div>
+                    <button onclick="openAddModal(2)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(2)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Поездка в огород на велосипеде <span style="color:#555; font-size:0.8em;">(1994)</span></span> 
+                <div>
+                    <button onclick="openAddModal(1)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(1)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> Ответственность за младших <span style="color:#555; font-size:0.8em;">(1995 – 2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(4)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(4)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">◆</span> Мама таскала меня везде <span style="color:#555; font-size:0.8em;">(1996 – 2001)</span></span> 
+                <div>
+                    <button onclick="openAddModal(6)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(6)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">●</span> «Ты не наша» <span style="color:#555; font-size:0.8em;">(1996)</span></span> 
+                <div>
+                    <button onclick="openAddModal(7)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(7)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Белорусский праздник <span style="color:#555; font-size:0.8em;">(1997)</span></span> 
+                <div>
+                    <button onclick="openAddModal(8)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(8)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">◆</span> Карате в 7 лет <span style="color:#555; font-size:0.8em;">(1997 – 1997)</span></span> 
+                <div>
+                    <button onclick="openAddModal(9)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(9)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Водка из шкафчика <span style="color:#555; font-size:0.8em;">(1997)</span></span> 
+                <div>
+                    <button onclick="openAddModal(102)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(102)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Первая проба курения <span style="color:#555; font-size:0.8em;">(07.1997)</span></span> 
+                <div>
+                    <button onclick="openAddModal(100)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(100)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">●</span> Бронхит в 1-м классе <span style="color:#555; font-size:0.8em;">(01.1998)</span></span> 
+                <div>
+                    <button onclick="openAddModal(12)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(12)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> Первая двойка <span style="color:#555; font-size:0.8em;">(02.1998)</span></span> 
+                <div>
+                    <button onclick="openAddModal(11)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(11)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">●</span> Дедушка выбросил игрушки <span style="color:#555; font-size:0.8em;">(1998)</span></span> 
+                <div>
+                    <button onclick="openAddModal(13)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(13)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">◆</span> Учитель била по рукам за почерк <span style="color:#555; font-size:0.8em;">(1998 – 1999)</span></span> 
+                <div>
+                    <button onclick="openAddModal(14)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(14)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">●</span> Прилипла языком к перилам <span style="color:#555; font-size:0.8em;">(12.1998)</span></span> 
+                <div>
+                    <button onclick="openAddModal(5)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(5)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Вторая проба курения <span style="color:#555; font-size:0.8em;">(07.1999)</span></span> 
+                <div>
+                    <button onclick="openAddModal(101)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(101)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Изменила почерк <span style="color:#555; font-size:0.8em;">(2000)</span></span> 
+                <div>
+                    <button onclick="openAddModal(15)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(15)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> Орден милосердия <span style="color:#555; font-size:0.8em;">(2000 – 2001)</span></span> 
+                <div>
+                    <button onclick="openAddModal(16)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(16)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> Тусовки в кабинете <span style="color:#555; font-size:0.8em;">(2000 – 2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(17)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(17)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Друг Борис <span style="color:#555; font-size:0.8em;">(2000)</span></span> 
+                <div>
+                    <button onclick="openAddModal(20)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(20)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">●</span> Принуждение есть салат с маслом <span style="color:#555; font-size:0.8em;">(06.2001)</span></span> 
+                <div>
+                    <button onclick="openAddModal(19)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(19)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Илья на горке <span style="color:#555; font-size:0.8em;">(2001)</span></span> 
+                <div>
+                    <button onclick="openAddModal(21)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(21)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> Конфликт в 5-м классе <span style="color:#555; font-size:0.8em;">(09.2001)</span></span> 
+                <div>
+                    <button onclick="openAddModal(18)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(18)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Бетонные зонтики и собака <span style="color:#555; font-size:0.8em;">(01.2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(23)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(23)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Прятки в фонтане <span style="color:#555; font-size:0.8em;">(02.2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(24)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(24)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">●</span> Перцовый баллончик <span style="color:#555; font-size:0.8em;">(04.2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(25)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(25)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Вова Валеев <span style="color:#555; font-size:0.8em;">(2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(22)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(22)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#bf40ff; font-size:1.1em;">●</span> Окно и озарение <span style="color:#555; font-size:0.8em;">(06.2002)</span></span> 
+                <div>
+                    <button onclick="openAddModal(26)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(26)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">◆</span> Крысы — разведение, дрессировка <span style="color:#555; font-size:0.8em;">(2002 – 2014)</span></span> 
+                <div>
+                    <button onclick="openAddModal(98)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(98)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> Переезд <span style="color:#555; font-size:0.8em;">(05.2003)</span></span> 
+                <div>
+                    <button onclick="openAddModal(27)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(27)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> Папа требовал быт от детей <span style="color:#555; font-size:0.8em;">(2003 – 2015)</span></span> 
+                <div>
+                    <button onclick="openAddModal(31)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(31)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">◆</span> Папа «хватит жрать» <span style="color:#555; font-size:0.8em;">(2003 – 2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(32)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(32)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">●</span> Перевели в Е-класс (коррекционный) <span style="color:#555; font-size:0.8em;">(09.2003)</span></span> 
+                <div>
+                    <button onclick="openAddModal(28)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(28)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> Английский с нуля (7 класс) <span style="color:#555; font-size:0.8em;">(09.2003)</span></span> 
+                <div>
+                    <button onclick="openAddModal(33)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(33)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#bf40ff; font-size:1.1em;">●</span> Бабушка заступилась <span style="color:#555; font-size:0.8em;">(10.2003)</span></span> 
+                <div>
+                    <button onclick="openAddModal(29)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(29)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">●</span> Гастродуоденит, опущение почки <span style="color:#555; font-size:0.8em;">(09.2004)</span></span> 
+                <div>
+                    <button onclick="openAddModal(36)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(36)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">◆</span> Кинг — период жизни и воспитания <span style="color:#555; font-size:0.8em;">(09.2004 – 06.06.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(42)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(42)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">◆</span> Буллинг в школе <span style="color:#555; font-size:0.8em;">(10.2004 – 05.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(35)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(35)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Шампанское на Новый год <span style="color:#555; font-size:0.8em;">(31.12.2004)</span></span> 
+                <div>
+                    <button onclick="openAddModal(39)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(39)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> мама не поверила <span style="color:#555; font-size:0.8em;">(11.05.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(43)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(43)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Chupa Chups <span style="color:#555; font-size:0.8em;">(12.05.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(44)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(44)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> Уборка — постоянный фон в дневнике <span style="color:#555; font-size:0.8em;">(05.2005 – 12.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(104)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(104)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Прогулка с собаками под дождём <span style="color:#555; font-size:0.8em;">(05.06.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(40)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(40)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#cccccc; font-size:1.1em;">●</span> Смерть Кинга <span style="color:#555; font-size:0.8em;">(06.06.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(41)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(41)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> Отказ от огорода («белоручка») <span style="color:#555; font-size:0.8em;">(06.2005 – 08.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(34)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(34)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">◆</span> Выступления в социальных учреждениях <span style="color:#555; font-size:0.8em;">(2005 – 2010)</span></span> 
+                <div>
+                    <button onclick="openAddModal(97)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(97)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> 9-й класс (экзамены, выпускной) <span style="color:#555; font-size:0.8em;">(09.2005 – 06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(37)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(37)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">◆</span> Танцы с Евгенией <span style="color:#555; font-size:0.8em;">(09.2005 – 09.2010)</span></span> 
+                <div>
+                    <button onclick="openAddModal(38)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(38)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> визит в старую школу <span style="color:#555; font-size:0.8em;">(08.12.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(45)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(45)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> первый раз на коньках <span style="color:#555; font-size:0.8em;">(16.12.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(46)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(46)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> выступление перед детьми-инвалидами <span style="color:#555; font-size:0.8em;">(28.12.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(47)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(47)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> школьная ёлка <span style="color:#555; font-size:0.8em;">(28.12.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(48)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(48)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> предновогодний день <span style="color:#555; font-size:0.8em;">(31.12.2005)</span></span> 
+                <div>
+                    <button onclick="openAddModal(49)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(49)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> Масленица, выступление на КБК <span style="color:#555; font-size:0.8em;">(05.03.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(50)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(50)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> выступление на конкурсе «Учитель года» <span style="color:#555; font-size:0.8em;">(17.03.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(51)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(51)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> обида, пришлось соврать подруге <span style="color:#555; font-size:0.8em;">(01.04.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(52)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(52)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> конкурс «Самый классный классный» <span style="color:#555; font-size:0.8em;">(04.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(53)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(53)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> «Бабушки в махровых халатах» <span style="color:#555; font-size:0.8em;">(11.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(54)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(54)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> Интерес к психологии и бухучёту <span style="color:#555; font-size:0.8em;">(05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(76)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(76)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> 2 грамоты (консультация в школе) <span style="color:#555; font-size:0.8em;">(26.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(55)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(55)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> чаепитие в «Романтик», эклеры <span style="color:#555; font-size:0.8em;">(26.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(56)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(56)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> подготовка к экзамену по татарскому <span style="color:#555; font-size:0.8em;">(27.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(57)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(57)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> экзамен по татарскому <span style="color:#555; font-size:0.8em;">(29.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(58)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(58)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> мороженое и набросились дома <span style="color:#555; font-size:0.8em;">(31.05.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(59)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(59)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> экзамен по алгебре — 5 <span style="color:#555; font-size:0.8em;">(02.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(60)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(60)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> шоколадка от Руслана <span style="color:#555; font-size:0.8em;">(03.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(61)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(61)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> экзамен по русскому — 4 <span style="color:#555; font-size:0.8em;">(06.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(62)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(62)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> экзамен по информатике — 4 <span style="color:#555; font-size:0.8em;">(09.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(63)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(63)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff3131; font-size:1.1em;">●</span> Дима с ножом <span style="color:#555; font-size:0.8em;">(12.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(64)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(64)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> получила аттестат <span style="color:#555; font-size:0.8em;">(15.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(65)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(65)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> репетиция без Алёны <span style="color:#555; font-size:0.8em;">(15.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(66)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(66)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> Попытка перевестись в другую школу <span style="color:#555; font-size:0.8em;">(06.2006 – 09.02.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(75)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(75)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> выступление на базе КБК <span style="color:#555; font-size:0.8em;">(17.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(67)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(67)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> приглашение на День молодёжи <span style="color:#555; font-size:0.8em;">(19.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(68)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(68)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> выступление на Дне молодёжи <span style="color:#555; font-size:0.8em;">(30.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(69)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(69)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> Дима потерялся <span style="color:#555; font-size:0.8em;">(30.06.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(70)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(70)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> одна в поликлинике за справкой <span style="color:#555; font-size:0.8em;">(13.07.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(71)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(71)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> Летняя работа в школе — с Алёной <span style="color:#555; font-size:0.8em;">(07.15.2006 – 07.26.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(72)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(72)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> чаепитие в «Романтик», плюшки <span style="color:#555; font-size:0.8em;">(18.08.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(73)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(73)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> приглашение на День республики <span style="color:#555; font-size:0.8em;">(28.08.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(74)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(74)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> зачёт по праву на 5 <span style="color:#555; font-size:0.8em;">(01.12.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(77)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(77)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> стулья за 5 секунд <span style="color:#555; font-size:0.8em;">(23.12.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(78)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(78)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> последний учебный день <span style="color:#555; font-size:0.8em;">(28.12.2006)</span></span> 
+                <div>
+                    <button onclick="openAddModal(79)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(79)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> Блейзер в кафе <span style="color:#555; font-size:0.8em;">(01.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(103)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(103)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">★</span> бухучёт на 5 и день рождения Серёги <span style="color:#555; font-size:0.8em;">(24.01.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(80)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(80)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> больничный, но на курсы пошла <span style="color:#555; font-size:0.8em;">(02.16.2007 – 02.26.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(82)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(82)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> папа отпустил с угрозами <span style="color:#555; font-size:0.8em;">(18.02.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(81)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(81)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> линейка, две грамоты («бумажки») <span style="color:#555; font-size:0.8em;">(29.02.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(94)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(94)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#bf40ff; font-size:1.1em;">◆</span> джинсы vs форма <span style="color:#555; font-size:0.8em;">(03.10.2007 – 03.20.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(83)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(83)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">●</span> покупка обуви с бабушкой <span style="color:#555; font-size:0.8em;">(23.03.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(84)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(84)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ff8c00; font-size:1.1em;">●</span> перевела часы не в ту сторону <span style="color:#555; font-size:0.8em;">(26.03.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(85)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(85)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> экзамен по стилистике на 5 <span style="color:#555; font-size:0.8em;">(27.03.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(86)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(86)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> поездка в реабилитационный центр <span style="color:#555; font-size:0.8em;">(29.03.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(87)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(87)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> день рождения Насти <span style="color:#555; font-size:0.8em;">(31.03.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(88)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(88)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">◆</span> городской конкурс <span style="color:#555; font-size:0.8em;">(04.05.2007 – 04.20.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(89)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(89)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> прогулы с Тоней <span style="color:#555; font-size:0.8em;">(12.04.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(90)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(90)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">◆</span> репетиции к 9 мая <span style="color:#555; font-size:0.8em;">(04.25.2007 – 05.09.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(92)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(92)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> подтанцовка для Эльвины <span style="color:#555; font-size:0.8em;">(27.04.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(91)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(91)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">◆</span> визит родственников к бабушке Тамаре <span style="color:#555; font-size:0.8em;">(05.25.2007 – 05.28.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(93)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(93)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#39ff14; font-size:1.1em;">●</span> защита диплома в учебном центре — 5 <span style="color:#555; font-size:0.8em;">(08.06.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(95)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(95)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#ffe600; font-size:1.1em;">●</span> прогулка с Настей <span style="color:#555; font-size:0.8em;">(10.06.2007)</span></span> 
+                <div>
+                    <button onclick="openAddModal(96)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(96)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div><div style="padding: 10px; border-bottom: 1px solid rgb(34, 34, 34); display: flex; justify-content: space-between; align-items: center;"><span><span style="color:#00bfff; font-size:1.1em;">◆</span> Мама ушла в компьютерные игры <span style="color:#555; font-size:0.8em;">(2008 – 2015)</span></span> 
+                <div>
+                    <button onclick="openAddModal(30)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(30)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div></div></div>
+    </div>
+</div>
+
+<div class="tab-content" id="tab-categories">
+    <div class="sticky-panel" style="position: static; box-shadow: none; background: transparent; border-bottom: 1px solid #222; padding: 10px;">
+        <button class="btn" style="flex:1; width:100%;" onclick="openCategoryModal()">+ Добавить категорию</button>
+    </div>
+    <div class="list-section">
+        <div id="catList"><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#ffe600"></div>
+                    <span style="font-size:1.1em;">Тепло / радость</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(0)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(0)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#39ff14"></div>
+                    <span style="font-size:1.1em;">Рост / Надежда / Ресурс</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(1)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(1)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#ff3131"></div>
+                    <span style="font-size:1.1em;">Боль / Страдание</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(2)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(2)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#00bfff"></div>
+                    <span style="font-size:1.1em;">Пустота / Холод</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(3)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(3)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#cccccc"></div>
+                    <span style="font-size:1.1em;">Травма / Отвержение</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(4)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(4)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#bf40ff"></div>
+                    <span style="font-size:1.1em;">Бунт / Сила / Границы</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(5)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(5)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div><div class="cat-item">
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:#ff8c00"></div>
+                    <span style="font-size:1.1em;">Тревога / Хаос</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(6)" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(6)" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            </div></div>
+    </div>
+</div>
+
+<div class="tab-content active" id="tab-export">
+    <div class="list-section" style="text-align: center; margin-top: 20px;">
+        <p style="color:#666; font-size:0.85em; margin-bottom: 20px; line-height: 1.5;">Скачай файл со всеми данными. Отправь его психологу — она увидит твою линию жизни и сможет её посмотреть.</p>
+        <button class="btn" style="padding: 14px 30px; font-size: 1.1em; margin-bottom: 15px;" onclick="exportFile()">📤 Скачать файл</button>
+        <br>
+        <button class="btn secondary" style="padding: 10px 20px; font-size: 0.9em; margin-top: 10px;" onclick="resetAll()">🗑️ Сбросить всё</button>
+    </div>
+</div>
+
+<div class="tooltip" id="tooltip">
+    <div class="tt-cat" id="ttCat"></div>
+    <div class="tt-title" id="ttTitle"></div>
+    <div class="tt-date" id="ttDate"></div>
+    <div class="tt-desc" id="ttDesc"></div>
+    <div class="tooltip-actions">
+        <button onclick="editFromTooltip()" style="color:#fff;">✎</button>
+        <button onclick="deleteFromTooltip()" style="color:#ff3131;">✕</button>
+    </div>
+</div>
+
+<div class="modal" id="birthModal">
+    <div class="modal-content" style="text-align:center;">
+        <h3 style="font-size: 1.5em; margin-bottom: 15px; font-weight: 300; letter-spacing: 1px;">Добро пожаловать</h3>
+        <p style="color:#aaa; font-size:0.95em; margin-bottom: 20px; line-height: 1.5;">
+            Здесь ты можешь создать свою линию жизни.<br>
+            Давай начнём с самого начала — когда ты появился(ась) на свет.
+        </p>
+        <div class="row" style="justify-content:center; margin-bottom:20px;">
+            <input type="number" id="bDay" placeholder="День" class="short" style="width:70px; font-size: 1.1em;">
+            <input type="number" id="bMonth" placeholder="Мес" class="short" style="width:70px; font-size: 1.1em;">
+            <input type="number" id="bYear" placeholder="Год" style="width:90px; font-size: 1.1em;">
+        </div>
+        <button class="btn" style="width:100%; background: #39ff14; color: #000; font-size: 1.1em; padding: 14px;" onclick="saveBirthDate()">Создать линию жизни</button>
+    </div>
+</div>
+
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <h3 id="addTitle">Новая запись</h3>
+        <div class="type-toggle">
+            <button type="button" id="btnTypeEvent" class="active" onclick="setAddType('event')">📍 Событие</button>
+            <button type="button" id="btnTypePeriod" onclick="setAddType('period')">📊 Период</button>
+        </div>
+        
+        <label>Категория</label>
+        <select id="catSelect"><option value="Тепло / радость">Тепло / радость</option><option value="Рост / Надежда / Ресурс">Рост / Надежда / Ресурс</option><option value="Боль / Страдание">Боль / Страдание</option><option value="Пустота / Холод">Пустота / Холод</option><option value="Травма / Отвержение">Травма / Отвержение</option><option value="Бунт / Сила / Границы">Бунт / Сила / Границы</option><option value="Тревога / Хаос">Тревога / Хаос</option></select>
+
+        <div id="fieldsEvent">
+            <label>Дата события</label>
+            <div class="row">
+                <input type="number" id="evDay" placeholder="День" class="short">
+                <input type="number" id="evMonth" placeholder="Мес" class="short">
+                <input type="number" id="evYear" placeholder="Год*">
+            </div>
+        </div>
+
+        <div id="fieldsPeriod" style="display:none;">
+            <label>Начало периода</label>
+            <div class="row">
+                <input type="number" id="pStartDay" placeholder="День" class="short">
+                <input type="number" id="pStartMonth" placeholder="Мес" class="short">
+                <input type="number" id="pStartYear" placeholder="Год*">
+            </div>
+            <label>Конец периода</label>
+            <div class="row">
+                <input type="number" id="pEndDay" placeholder="День" class="short">
+                <input type="number" id="pEndMonth" placeholder="Мес" class="short">
+                <input type="number" id="pEndYear" placeholder="Год*">
+            </div>
+        </div>
+
+        <label>Название*</label>
+        <input type="text" id="titleInput" placeholder="Коротко о событии">
+        <label>Описание</label>
+        <textarea id="descInput" placeholder="Пара строк..."></textarea>
+        
+        <button type="button" class="btn" style="width:100%; margin-top: 10px;" onclick="saveEntry()">Сохранить</button>
+        <button type="button" style="width:100%; padding:10px; background:none; color:#666; border:none; margin-top:5px; cursor:pointer;" onclick="closeModal()">Отмена</button>
+    </div>
+</div>
+
+<div class="modal" id="filterModal">
+    <div class="modal-content">
+        <h3>Фильтр и сортировка</h3>
+        
+        <label>Тип записи</label>
+        <select id="filterType">
+            <option value="all">Все типы</option>
+            <option value="event">📍 Только события</option>
+            <option value="period">📊 Только периоды</option>
+        </select>
+
+        <label>Категория</label>
+        <select id="filterCategory"><option value="all">Все категории</option><option value="Тепло / радость">Тепло / радость</option><option value="Рост / Надежда / Ресурс">Рост / Надежда / Ресурс</option><option value="Боль / Страдание">Боль / Страдание</option><option value="Пустота / Холод">Пустота / Холод</option><option value="Травма / Отвержение">Травма / Отвержение</option><option value="Бунт / Сила / Границы">Бунт / Сила / Границы</option><option value="Тревога / Хаос">Тревога / Хаос</option></select>
+
+        <label>Годы</label>
+        <div class="row">
+            <select id="filterYearStart" style="flex:1;"><option value="1990">1990</option><option value="1991">1991</option><option value="1992">1992</option><option value="1993">1993</option><option value="1994">1994</option><option value="1995">1995</option><option value="1996">1996</option><option value="1997">1997</option><option value="1998">1998</option><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2010">2010</option><option value="2014">2014</option><option value="2015">2015</option></select>
+            <div style="display:flex; align-items:center; padding:0 5px; color:#666;">—</div>
+            <select id="filterYearEnd" style="flex:1;"><option value="1990">1990</option><option value="1991">1991</option><option value="1992">1992</option><option value="1993">1993</option><option value="1994">1994</option><option value="1995">1995</option><option value="1996">1996</option><option value="1997">1997</option><option value="1998">1998</option><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2010">2010</option><option value="2014">2014</option><option value="2015">2015</option></select>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button type="button" class="btn" style="flex: 1; background:#1a1a1a; color:#fff; border:1px solid #333;" onclick="resetFilters()">Сбросить</button>
+            <button type="button" class="btn" style="flex: 1;" onclick="applyFilters()">Применить</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="catModal">
+    <div class="modal-content">
+        <h3 id="catModalTitle">Новая категория</h3>
+        
+        <label>Название*</label>
+        <input type="text" id="catNameInput" placeholder="Название категории">
+        
+        <label>Выберите цвет</label>
+        <div class="color-palette" id="colorPalette"></div>
+
+        <button type="button" class="btn" style="width:100%; margin-top: 15px;" onclick="saveCategory()">Сохранить</button>
+        <button type="button" style="width:100%; padding:10px; background:none; color:#666; border:none; margin-top:5px; cursor:pointer;" onclick="document.getElementById('catModal').classList.remove('active')">Отмена</button>
+    </div>
+</div>
+
+<script>
+    const preloadedData = {"categories":[{"name":"Тепло / радость","color":"#ffe600"},{"name":"Рост / Надежда / Ресурс","color":"#39ff14"},{"name":"Боль / Страдание","color":"#ff3131"},{"name":"Пустота / Холод","color":"#00bfff"},{"name":"Травма / Отвержение","color":"#cccccc"},{"name":"Бунт / Сила / Границы","color":"#bf40ff"},{"name":"Тревога / Хаос","color":"#ff8c00"}],"entries":[{"type":"event","category":"Тепло / радость","title":"Ночёвка в лесу","desc":"Костёр, шалаш из веток, я лежу рядом с костром.","day":null,"month":null,"year":1992,"_eventLayer":0,"_eventY":166.66666666666666,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Поездка в огород на велосипеде","desc":"Еду с папой на велосипеде, пою песенки через кукурузное поле.","day":null,"month":null,"year":1994,"_eventLayer":0,"_eventY":296.6666666666667,"_hasText":true},{"type":"event","category":"Травма / Отвержение","title":"Коляска с сестрой","desc":"Меня обвинили, что я перевернула коляску и чуть не убила сестру. Помню только красную коляску.","day":null,"month":10,"year":1993,"_eventLayer":0,"_eventY":248,"_hasText":true},{"type":"period","category":"Пустота / Холод","title":"Отсутствие детского сада","desc":"Папа имел льготы на садик, но не воспользовался. Помогал другим, а своим — нет.","startMonth":null,"startYear":1993,"endMonth":null,"endYear":1997,"_layer":1},{"type":"period","category":"Пустота / Холод","title":"Ответственность за младших","desc":"С 5 лет гуляю с младшими, очень редко одна. Если они шалят, повредились — виновата я.","startMonth":null,"startYear":1995,"endMonth":null,"endYear":2002,"_layer":2},{"type":"event","category":"Боль / Страдание","title":"Прилипла языком к перилам","desc":"Зимой лизнула железную перилу, язык примёрз. Мамы нет, оторвала сама, было больно.","day":null,"month":12,"year":1998,"_eventLayer":0,"_eventY":674.4444444444445,"_hasText":true},{"type":"period","category":"Тревога / Хаос","title":"Мама таскала меня везде","desc":"Мама с подругой уходили «в гости», а мы с её дочкой гуляли во дворе. Теперь понимаю, зачем.","startMonth":null,"startYear":1996,"endMonth":null,"endYear":2001,"_layer":3},{"type":"event","category":"Травма / Отвержение","title":"«Ты не наша»","desc":"Бабушка (папина мама) говорит мне: «Ты не наша».","day":null,"month":null,"year":1996,"_eventLayer":0,"_eventY":396.6666666666667,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Белорусский праздник","desc":"Бабуля взяла на праздник. Я танцевала, участвовала в конкурсах. Бабушке сказалаи про меня: «живая, активная, нестеснительная».","day":null,"month":null,"year":1997,"_eventLayer":0,"_eventY":447.14285714285717,"_hasText":true},{"type":"period","category":"Тревога / Хаос","title":"Карате в 7 лет","desc":"Мама водила меня на карате. Я получила жёлтый пояс, садилась на шпагат. Мама с инструктором закрывались в кабинете, а я бродила по коридорам.","startDay":null,"startMonth":null,"startYear":1997,"endDay":null,"endMonth":null,"endYear":1997,"_layer":4},{"type":"event","category":"Тепло / радость","title":"Бражка","desc":"Попросила дедушкин квас, а он дал бражку. Было противно. Сейчас понимаю, что это была шутка взрослого.","day":null,"month":null,"year":1993,"_eventLayer":0,"_eventY":216,"_hasText":true},{"type":"event","category":"Пустота / Холод","title":"Первая двойка","desc":"Знала ответ, тянула руку, меня не спросили, поставили двойку. Родители не заступились.","day":null,"month":2,"year":1998,"_eventLayer":0,"_eventY":603.3333333333334,"_hasText":true},{"type":"event","category":"Боль / Страдание","title":"Бронхит в 1-м классе","desc":"Болела бронхитом, учитель приносила задания, делала уроки сама. Родителей не было, чувствовала себя одна в пустой квартире.","day":null,"month":1,"year":1998,"_eventLayer":0,"_eventY":567.7777777777778,"_hasText":true},{"type":"event","category":"Травма / Отвержение","title":"Дедушка выбросил игрушки","desc":"Пришла из школы. Дедушка собирал игрушки в мешок. Я просила не выбрасывать. Он спустил их в мусоропровод. Там были мои игрушки. Младшие разбросали, а наказали всех.","day":null,"month":null,"year":1998,"_eventLayer":0,"_eventY":638.8888888888889,"_hasText":true},{"type":"period","category":"Боль / Страдание","title":"Учитель била по рукам за почерк","desc":"Учительница била линейкой по рукам за корявый почерк и грязь в тетради.","startDay":null,"startMonth":null,"startYear":1998,"endDay":null,"endMonth":null,"endYear":1999,"_layer":5},{"type":"event","category":"Тепло / радость","title":"Изменила почерк","desc":"Начала писать мелко, как дедушка. Учитель жаловалась, что не видит даже в очках с лупой.","day":null,"month":null,"year":2000,"_eventLayer":0,"_eventY":776,"_hasText":true},{"type":"period","category":"Тепло / радость","title":"Орден милосердия","desc":"Учила жестовую речь, общалась со слепой девочкой. Поняла, что буллинг по внешности — глупость.","startDay":null,"startMonth":null,"startYear":2000,"endDay":null,"endMonth":null,"endYear":2001,"_layer":1},{"type":"period","category":"Тепло / радость","title":"Тусовки в кабинете","desc":"Чаепития, дежурства, игры с бутылками. Я была своей, могла быть собой. Светлое время.","startDay":null,"startMonth":null,"startYear":2000,"endDay":null,"endMonth":null,"endYear":2002,"_layer":4},{"type":"event","category":"Тревога / Хаос","title":"Конфликт в 5-м классе","desc":"Одноклассницы требовали бросить дружбу с девочкой из «вражеского» класса. Я отказалась, меня травили.","day":null,"month":9,"year":2001,"_eventLayer":0,"_eventY":925.7142857142857,"_hasText":true},{"type":"event","category":"Боль / Страдание","title":"Принуждение есть салат с маслом","desc":"Мы с сестрой перелили масло в салате. Отец заставил нас есть одних. Меня рвало. С тех пор отвращение к жирному.","day":null,"month":6,"year":2001,"_eventLayer":0,"_eventY":857.1428571428571,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Друг Борис","desc":"Друг признался в любви, я сказала «мы просто друзья», он перестал дружить.","day":null,"month":null,"year":2000,"_eventLayer":0,"_eventY":808,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Илья на горке","desc":"Илья признался, я отказала, он лёг на снег, мы с Настей везли его домой на ледянках.","day":null,"month":null,"year":2001,"_eventLayer":0,"_eventY":891.4285714285714,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Вова Валеев","desc":"Задирался, прижимал в туалете. Девчонки хихикали и выручали друг друга. Подростковая игра.","day":null,"month":null,"year":2002,"_eventLayer":0,"_eventY":1087.2727272727273,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Бетонные зонтики и собака","desc":"Залезли на крышу туалета, прыгали по зонтикам, затащили собаку, спускали в куртке. Весело, дружно.","day":null,"month":1,"year":2002,"_eventLayer":0,"_eventY":978.1818181818181,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Прятки в фонтане","desc":"Зимняя прогулка с друзьями, снег, звёзды, придумали F1 и F2. Тёплое, светлое воспоминание.","day":null,"month":2,"year":2002,"_eventLayer":0,"_eventY":1014.5454545454545,"_hasText":true},{"type":"event","category":"Травма / Отвержение","title":"Перцовый баллончик","desc":"Младшие распылили в комнате папин перцовый баллончик. Меня ругали, хотя я была в школе.","day":null,"month":4,"year":2002,"_eventLayer":0,"_eventY":1050.9090909090908,"_hasText":true},{"type":"event","category":"Бунт / Сила / Границы","title":"Окно и озарение","desc":"Мысль выйти в окно, чтобы всем стало легче. Потом поняла: «Почему я должна уходить? Пусть уходят они».","day":null,"month":6,"year":2002,"_eventLayer":0,"_eventY":1123.6363636363635,"_hasText":true},{"type":"event","category":"Тревога / Хаос","title":"Переезд","desc":"Переехали в служебную квартиру отца. Потеря друзей, комната с сестрой (брату отдельно).","day":null,"month":5,"year":2003,"_eventLayer":0,"_eventY":1177.7777777777778,"_hasText":true},{"type":"event","category":"Травма / Отвержение","title":"Перевели в Е-класс (коррекционный)","desc":"Попала в сильный Г-класс, через 2 недели перевели в проблемный Е-класс. Унижения, мальчики вешали прокладки на стены.","day":null,"month":9,"year":2003,"_eventLayer":0,"_eventY":1213.3333333333335,"_hasText":true},{"type":"event","category":"Бунт / Сила / Границы","title":"Бабушка заступилась","desc":"Бабушка (мамина мама) настояла, чтобы меня вернули в Г-класс. Один из немногих случаев заступничества.","day":null,"month":10,"year":2003,"_eventLayer":0,"_eventY":1284.4444444444446,"_hasText":true},{"type":"period","category":"Пустота / Холод","title":"Мама ушла в компьютерные игры","desc":"После переезда мама постоянно играла в компьютер. Просыпаешься — она за компьютером, приходишь — она за компьютером.","startDay":null,"startMonth":null,"startYear":2008,"endDay":null,"endMonth":null,"endYear":2015,"_layer":0},{"type":"period","category":"Пустота / Холод","title":"Папа требовал быт от детей","desc":"Папа требовал готовить, убирать, стирать. Говорил: «кто вас замуж возьмёт, если не умеете».","startYear":2003,"endYear":2015,"startMonth":null,"startDay":null,"endMonth":null,"endDay":null,"_layer":1},{"type":"period","category":"Боль / Страдание","title":"Папа «хватит жрать»","desc":"Тело меняется, набираю вес. Папа говорит: «хватит жрать», «посмотри на себя в зеркало».","startDay":null,"startMonth":null,"startYear":2003,"endDay":null,"endMonth":null,"endYear":2005,"_layer":3},{"type":"event","category":"Пустота / Холод","title":"Английский с нуля (7 класс)","desc":"Пришла в новую школу, английский не знала (учила немецкий). Учитель быстро объяснила алфавит, тройка за четверть.","day":null,"month":9,"year":2003,"_eventLayer":0,"_eventY":1248.888888888889,"_hasText":true},{"type":"period","category":"Тепло / радость","title":"Отказ от огорода («белоручка»)","desc":"Отказалась работать в огороде после экзаменов. Папа называл «белоручкой», «элитой». Сейчас горжусь этим.","startDay":null,"startMonth":6,"startYear":2005,"endDay":null,"endMonth":8,"endYear":2005,"_layer":6},{"type":"period","category":"Травма / Отвержение","title":"Буллинг в школе","desc":"","startDay":null,"startMonth":10,"startYear":2004,"endDay":null,"endMonth":5,"endYear":2005,"_layer":2},{"type":"event","category":"Боль / Страдание","title":"Гастродуоденит, опущение почки","desc":"Тащила тяжёльную корзину, родители не встретили. Боль, температура, меня не слушали. Стационар.","day":null,"month":9,"year":2004,"_eventLayer":0,"_eventY":1336,"_hasText":true},{"type":"period","category":"Тепло / радость","title":"9-й класс (экзамены, выпускной)","desc":"Сдала экзамены спокойно. Поставила цель — закончить 11 классов. Выпускной отметила с подругой в кафе.","startDay":null,"startMonth":9,"startYear":2005,"endDay":null,"endMonth":6,"endYear":2006,"_layer":7},{"type":"period","category":"Рост / Надежда / Ресурс","title":"Танцы с Евгенией","desc":"Хореограф стала значимым взрослым. Обожала выступать, это был выплеск энергии и спасение.","startDay":null,"startMonth":9,"startYear":2005,"endDay":null,"endMonth":9,"endYear":2010,"_layer":8},{"type":"event","category":"Тепло / радость","title":"Шампанское на Новый год","desc":"В 14 лет впервые попробовала шампанское на Новый год с родителями. Спокойно, вкусно, с ритуалом желания. Ощущение взрослости.","day":31,"month":12,"year":2004,"_eventLayer":0,"_eventY":1368,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Прогулка с собаками под дождём","desc":"Попали под дождь с собаками, бежали домой. Кинг слушался, я была рада. Ностальгия.","day":5,"month":6,"year":2005,"_eventLayer":0,"_eventY":1494.7368421052633,"_hasText":true},{"type":"event","category":"Травма / Отвержение","title":"Смерть Кинга","desc":"Кинга сбила машина. Я принесла его домой, он умер. Я винила себя. После этого не писала дневник всё лето.","day":6,"month":6,"year":2005,"_eventLayer":0,"_eventY":1532.6315789473686,"_hasText":true},{"type":"period","category":"Рост / Надежда / Ресурс","title":"Кинг — период жизни и воспитания","desc":"Кинг — русский спаниель, которого мы взяли в 2004 году. Я много с ним занималась: дрессировала, гуляла, ухаживала. Это был мой первый опыт воспитания собаки.","startDay":null,"startMonth":9,"startYear":2004,"endDay":6,"endMonth":6,"endYear":2005,"_layer":4},{"type":"event","category":"Пустота / Холод","title":"мама не поверила","desc":"Тошнота, мама не поверила, отправила в школу. Я не пошла, мама обиделась.","day":11,"month":5,"year":2005,"_eventLayer":0,"_eventY":1418.9473684210527,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Chupa Chups","desc":"Сходили с мамой за талонами, купили Chupa Chups. Ела в трамвае, чтобы младшие не узнали. Редкий момент «только для меня».","day":12,"month":5,"year":2005,"_eventLayer":0,"_eventY":1456.842105263158,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"визит в старую школу","desc":"После олимпиады зашла в старую школу. Учителя не узнали, но одноклассники обрадовались. Тепло, немного грустно.","day":8,"month":12,"year":2005,"_eventLayer":0,"_eventY":1570.5263157894738,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"первый раз на коньках","desc":"Впервые встала на коньки, выступала скоморохой. Страх, азарт, потом поехала без бортика. Важный шаг.","day":16,"month":12,"year":2005,"_eventLayer":0,"_eventY":1608.421052631579,"_hasText":true},{"type":"event","category":"Тревога / Хаос","title":"выступление перед детьми-инвалидами","desc":"Выступали перед детьми-инвалидами в неудобном помещении. Было неловко, жалко детей, танцевали как учили.","day":28,"month":12,"year":2005,"_eventLayer":0,"_eventY":1646.3157894736842,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"школьная ёлка","desc":"Школьная дискотека. Забыла приглашение, учитель пропустила. Хорошо провела вечер.","day":28,"month":12,"year":2005,"_eventLayer":0,"_eventY":1684.2105263157896,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"предновогодний день","desc":"С Настей выбирали подарки, зашли к учительнице, гуляли на городской ёлке, гордилась городом. Помогала бабушке и маме. Встретила Новый год.","day":31,"month":12,"year":2005,"_eventLayer":0,"_eventY":1722.1052631578948,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"Масленица, выступление на КБК","desc":"Масленица, выступление на КБК. Хореограф грозилась поставить в последний ряд, но я была в первом. Азарт, гордость, радость.","day":5,"month":3,"year":2006,"_eventLayer":0,"_eventY":1779.6491228070176,"_hasText":true},{"type":"event","category":"Тревога / Хаос","title":"выступление на конкурсе «Учитель года»","desc":"Выступали на конкурсе «Учитель года» в своей школе. Было волнение. Выступили отлично, хореограф была довольна. Разочаровало, что обещанного телевидения не было.","day":17,"month":3,"year":2006,"_eventLayer":0,"_eventY":1818.9473684210527,"_hasText":true},{"type":"event","category":"Пустота / Холод","title":"обида, пришлось соврать подруге","desc":"Приехала к подруге на следующий день после дня рождения. Соврала, что не смогла приехать раньше. На самом деле — родители не отпустили, не дали денег на проезд или на подарок. Обидно.","day":1,"month":4,"year":2006,"_eventLayer":0,"_eventY":1858.2456140350878,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"конкурс «Самый классный классный»","desc":"Наш класс занял третье место в конкурсе «Самый классный классный». Я с девчонками танцевала, не была просто зрителем. Гордость за класс и за свой вклад.","day":4,"month":5,"year":2006,"_eventLayer":0,"_eventY":1897.5438596491229,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"«Бабушки в махровых халатах»","desc":"Показывали визитку в «Заман». Взяли второе место — немного разочарованы, что запороли песню «Бабушки в махровых халатах». Но подготовка и смех — очень тёплое воспоминание.","day":11,"month":5,"year":2006,"_eventLayer":0,"_eventY":1936.842105263158,"_hasText":true},{"type":"event","category":"Пустота / Холод","title":"2 грамоты (консультация в школе)","desc":"Ходила на консультацию в школе, получила 2 грамоты. Запись между строк. Достижения не несли ценности в семье.","day":26,"month":5,"year":2006,"_eventLayer":0,"_eventY":2015.438596491228,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"чаепитие в «Романтик», эклеры","desc":"Чаепитие в клубе «Романтик». Пекла эклеры, получила линеечку. Приятное событие, но дома не оценили.","day":26,"month":5,"year":2006,"_eventLayer":0,"_eventY":2054.7368421052633,"_hasText":true},{"type":"event","category":"Пустота / Холод","title":"подготовка к экзамену по татарскому","desc":"Сижу одна, повторяю татарский, готовлюсь к экзамену. Хочу сдать на 4. В итоге сдала.","day":27,"month":5,"year":2006,"_eventLayer":0,"_eventY":2094.035087719298,"_hasText":true},{"type":"event","category":"Тревога / Хаос","title":"экзамен по татарскому","desc":"Экзамен по татарскому. Учитель пыталась сбить с толку. Тревога, неуверенность. Сдала на 4. Благодарю учителя.","day":29,"month":5,"year":2006,"_eventLayer":0,"_eventY":2133.3333333333335,"_hasText":true},{"type":"event","category":"Пустота / Холод","title":"мороженое и набросились дома","desc":"После репетиции купила себе мороженое. Дома увидели из окна, набросились, что купила только себе, а не всем. Не получила удовольствия от мороженого.","day":31,"month":5,"year":2006,"_eventLayer":0,"_eventY":2172.6315789473683,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"экзамен по алгебре — 5","desc":"Экзамен по алгебре. Написала «ни пуха, ни пера». Подробно записала задания. Сдала на 5!","day":2,"month":6,"year":2006,"_eventLayer":0,"_eventY":2211.9298245614036,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"шоколадка от Руслана","desc":"На экзамене помогала мальчику Руслану решать математику. Он обещал шоколадку. На следующий день пришёл с шоколадкой. Дома никого не было — съела её спокойно.","day":3,"month":6,"year":2006,"_eventLayer":0,"_eventY":2251.228070175439,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"экзамен по русскому — 4","desc":"Экзамен по русскому. Тревога, комиссия, отбирали шпаргалки. Написала сочинение. Сдала на 4.","day":6,"month":6,"year":2006,"_eventLayer":0,"_eventY":2290.5263157894738,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"экзамен по информатике — 4","desc":"Экзамен по информатике. Переживала, много теории. Попался слабый билет, но сдала на 4. Ура!","day":9,"month":6,"year":2006,"_eventLayer":0,"_eventY":2329.824561403509,"_hasText":true},{"type":"event","category":"Боль / Страдание","title":"Дима с ножом","desc":"На даче осталась за старшую. Дима залез на крышу, хотел разжечь костёр. Я не дала. Он убежал с ножом, угрожал порезать себя","day":12,"month":6,"year":2006,"_eventLayer":0,"_eventY":2369.122807017544,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"получила аттестат","desc":"Получила аттестат. Больше разочарования, чем радости — много четвёрок, которых не хотела видеть.","day":15,"month":6,"year":2006,"_eventLayer":0,"_eventY":2408.421052631579,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"репетиция без Алёны","desc":"Алёна не смогла прийти на репетицию. Из девчонок «Романтик» осталась я одна. Грустно, но танцевала с другими.","day":15,"month":6,"year":2006,"_eventLayer":0,"_eventY":2447.719298245614,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"выступление на базе КБК","desc":"Проснулась в 6:20, опаздывала. Забыла косметичку. Алёна не приехала. Волосы растрепались — как медуза Горгона. Выступили хорошо, но грусть от того, что утро не задалось.","day":17,"month":6,"year":2006,"_eventLayer":0,"_eventY":2487.0175438596493,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"приглашение на День молодёжи","desc":"Нас пригласили выступать на Дне молодёжи. Начались репетиции. Это стало важным этапом.","day":19,"month":6,"year":2006,"_eventLayer":0,"_eventY":2526.315789473684,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"выступление на Дне молодёжи","desc":"Выступали на Дне молодёжи. С этого года День молодёжи стал для меня источником энергии и силы.","day":30,"month":6,"year":2006,"_eventLayer":0,"_eventY":2565.6140350877195,"_hasText":true},{"type":"event","category":"Тревога / Хаос","title":"Дима потерялся","desc":"После выступления на Дне молодёжи Дима потерялся. Искали, педагог задержала автобус, потом уехали. Встретила его у дома, отругала. Дома позвонили папе — он уже объявил розыск.","day":30,"month":6,"year":2006,"_eventLayer":0,"_eventY":2604.9122807017548,"_hasText":true},{"type":"event","category":"Пустота / Холод","title":"одна в поликлинике за справкой","desc":"Сама ходила в поликлинику за справкой для работы. Сидела одна, ждала. Заметила, что другие приходили с мамами. Снова сама решала свои вопросы.","day":13,"month":7,"year":2006,"_eventLayer":0,"_eventY":2644.2105263157896,"_hasText":true},{"type":"period","category":"Тепло / радость","title":"Летняя работа в школе — с Алёной","desc":"Работала в школе за деньги с Алёной. Мыли окна, отмывали шкафы от побелки, протирали полы, красили батареи, стирали гардины. Деньги потратила на канцелярию.","startDay":15,"startMonth":7,"startYear":2006,"endDay":26,"endMonth":7,"endYear":2006,"_layer":11},{"type":"event","category":"Тепло / радость","title":"чаепитие в «Романтик», плюшки","desc":"Чаепитие в клубе «Романтик». Пекла плюшки с повидлом, другие тоже принесли. Получила подарки (ручку). Ручка была со мной долго, но после потопа её выбросили.","day":18,"month":8,"year":2006,"_eventLayer":0,"_eventY":2683.5087719298244,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"приглашение на День республики","desc":"Нас снова пригласили выступать — на День республики на Майдане. Радостное событие, как и День молодёжи.","day":28,"month":8,"year":2006,"_eventLayer":0,"_eventY":2722.8070175438597,"_hasText":true},{"type":"period","category":"Тепло / радость","title":"Попытка перевестись в другую школу","desc":"Летом пыталась перевестись в 12-ю школу. Ходила сама, узнавала документы, делала фото. 1 сентября — не знаю, в какой школе учусь. 2 сентября с мамой пошли в 12-ю, но передумала. Вернулась в 9-ю — попала в Б-класс.","startDay":null,"startMonth":6,"startYear":2006,"endDay":2,"endMonth":9,"endYear":2006,"_layer":12},{"type":"event","category":"Рост / Надежда / Ресурс","title":"Интерес к психологии и бухучёту","desc":"В учебном центре подробно описывала занятия по психологии и бухучёту. Творчество, психология, бухучёт — то, что уже тогда привлекало.","day":null,"month":5,"year":2006,"_eventLayer":0,"_eventY":1976.1403508771932,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"зачёт по праву на 5","desc":"Сдала зачёт по праву в учебном центре на 5. Несмотря на то, что право не нравилось — сдала отлично. Была счастлива, весь день прошёл замечательно.","day":1,"month":12,"year":2006,"_eventLayer":0,"_eventY":2762.105263157895,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"стулья за 5 секунд","desc":"В 9-й школе бегали отпрашиваться у учителей. Одна сказала: отпустит, если поднимете стулья. Мы сделали это за 5 секунд. Чувство «своей» в этой школе","day":23,"month":12,"year":2006,"_eventLayer":0,"_eventY":2801.40350877193,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"последний учебный день","desc":"Последний учебный день в году. Хотели прогулять, но классная позвонила — пошли. Отсиживались в туалете, потом пошли на урок, ничего не делали. С УПК сбежали. Тёплый, позитивный день.","day":28,"month":12,"year":2006,"_eventLayer":0,"_eventY":2840.701754385965,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"бухучёт на 5 и день рождения Серёги","desc":"Сдала экзамен по бухучёту на 5. День рождения друга Серёги. С Настей подготовили подарок, встретились с ребятами, проводили Серёгу. Потом гуляли, хихикали, вернулась домой в 23:00. Тёплый день.","day":24,"month":1,"year":2007,"_eventLayer":0,"_eventY":2937.777777777778,"_hasText":true,"isBirth":true},{"type":"event","category":"Тревога / Хаос","title":"папа отпустил с угрозами","desc":"Папа назначил уборку на воскресенье, но мне нужно было ехать к двоюродной сестре делать реферат. Отпустил, но с угрозами.","day":18,"month":2,"year":2007,"_eventLayer":0,"_eventY":2976.296296296296,"_hasText":true},{"type":"period","category":"Пустота / Холод","title":"больничный, но на курсы пошла","desc":"16 февраля пыталась пойти в поликлинику, не знала график. 19 февраля пошла, открыли больничный. Продлили до 26 февраля. В школу не ходила, но на курсы пошла. 21 февраля проспала приём — никто не разбудил.","startDay":16,"startMonth":2,"startYear":2007,"endDay":26,"endMonth":2,"endYear":2007,"_layer":2},{"type":"period","category":"Бунт / Сила / Границы","title":"джинсы vs форма","desc":"10 марта пришли с Тоней в джинсах. 19 марта — снова в джинсах, ругал директор. 20 марта пришли в классических брюках — все удивились.","startDay":10,"startMonth":3,"startYear":2007,"endDay":20,"endMonth":3,"endYear":2007,"_layer":3},{"type":"event","category":"Пустота / Холод","title":"покупка обуви с бабушкой","desc":"С бабушкой Зиной поехали покупать обувь. Несколько часов ходили, бабушка критиковала мой выбор. В итоге дала деньги и сказала: «Покупай сама». Ощущение, что мой выбор ничтожен.","day":23,"month":3,"year":2007,"_eventLayer":0,"_eventY":3053.333333333333,"_hasText":true},{"type":"event","category":"Тревога / Хаос","title":"перевела часы не в ту сторону","desc":"В день перевода часов мы с мамой переводили их (я, скорее всего, инициатор). Перевела не в ту сторону — опоздала на учёбу. Сейчас понимаю: почему я, ребёнок, отвечала за это, а не взрослые?","day":26,"month":3,"year":2007,"_eventLayer":0,"_eventY":3091.8518518518517,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"экзамен по стилистике на 5","desc":"Сдала экзамен по стилистике на 5. Не учила, но схватила на лету — посещала лекции. Гордость.","day":27,"month":3,"year":2007,"_eventLayer":0,"_eventY":3130.3703703703704,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"поездка в реабилитационный центр","desc":"Ехали в реабилитационный центр. С Алёной и девчонками на заднем сиденье махали проезжающим машинам. Нам подпикивали, мы хихикали. До сих пор вспоминаю это с ностальгией.","day":29,"month":3,"year":2007,"_eventLayer":0,"_eventY":3168.8888888888887,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"день рождения Насти","desc":"День рождения подруги Насти. Гуляли, мальчишки расходились, Настя предлагала встречаться с Андреем — не стали. Ностальгическое, тёплое подростковое воспоминание.","day":31,"month":3,"year":2007,"_eventLayer":0,"_eventY":3207.4074074074074,"_hasText":true},{"type":"period","category":"Рост / Надежда / Ресурс","title":"городской конкурс","desc":"5 апреля — первое место, прошли на городской. 10 апреля — прошли в финал. 20 апреля — финал. Получили грамоту (или приз зрительских симпатий) и тортик. Не победили, но участие было важным.","startDay":5,"startMonth":4,"startYear":2007,"endDay":20,"endMonth":4,"endYear":2007,"_layer":4},{"type":"event","category":"Тепло / радость","title":"прогулы с Тоней","desc":"Снова прогуляли с Тоней. Литературы не было, ушли домой, потом пришли на физику, потом снова ушли. Нам влетело от учителя физкультуры.","day":12,"month":4,"year":2007,"_eventLayer":0,"_eventY":3245.9259259259256,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"подтанцовка для Эльвины","desc":"С Алёной ставили подтанцовку для девочки Эльвины. Забирали костюмы, привозили, сами делали постановку. Она взяла премию Мисс Гламурность. Рост, развитие.","day":27,"month":4,"year":2007,"_eventLayer":0,"_eventY":3284.4444444444443,"_hasText":true},{"type":"period","category":"Рост / Надежда / Ресурс","title":"репетиции к 9 мая","desc":"С 25 апреля по 9 мая — репетиции к 9 мая на стадионе почти каждый день. В неудобных костюмах, под дождём, промёрзли, промокли. Разные эмоции, но это был рост и подготовка.","startDay":25,"startMonth":4,"startYear":2007,"endDay":9,"endMonth":5,"endYear":2007,"_layer":6},{"type":"period","category":"Тепло / радость","title":"визит родственников к бабушке Тамаре","desc":"К бабушке Тамаре приехали дальние родственники. 27 мая гуляли до 2 часов ночи. 28 мая встала в 7, снова гуляли. Тёплые воспоминания, приятно было познакомиться с родственниками.","startDay":25,"startMonth":5,"startYear":2007,"endDay":28,"endMonth":5,"endYear":2007,"_layer":10},{"type":"event","category":"Пустота / Холод","title":"линейка, две грамоты («бумажки»)","desc":"Линейка, пришло несколько детей. Получила ещё две грамоты — «наградили аж 2 бумажками». За что, не помню.","day":29,"month":2,"year":2007,"_eventLayer":0,"_eventY":3014.814814814815,"_hasText":true},{"type":"event","category":"Рост / Надежда / Ресурс","title":"защита диплома в учебном центре — 5","desc":"Защитила диплом в учебном центре на 5. Получаю красный диплом","day":8,"month":6,"year":2007,"_eventLayer":0,"_eventY":3322.9629629629626,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"прогулка с Настей","desc":"Гуляла с подругой Настей, её парнем Вадимом, другом Серёжей и братом Яшкой. Настя делилась, что они с Вадимом уже говорят о свадьбе. Тёплый, ностальгический день.","day":10,"month":6,"year":2007,"_eventLayer":0,"_eventY":3361.4814814814813,"_hasText":true},{"type":"period","category":"Рост / Надежда / Ресурс","title":"Выступления в социальных учреждениях","desc":"С 2005 по 2010 много выступали: в реабилитационном центре, госпитале, пансионате для пожилых. Всегда с душой, с открытым сердцем.","startDay":null,"startMonth":null,"startYear":2005,"endDay":null,"endMonth":null,"endYear":2010,"_layer":9},{"type":"period","category":"Рост / Надежда / Ресурс","title":"Крысы — разведение, дрессировка","desc":"Крысы с 2002 по 2014: разведение, дрессировка, наблюдения, дневники, уход за клетками. Я сама всё делала.","startDay":null,"startMonth":null,"startYear":2002,"endDay":null,"endMonth":null,"endYear":2014,"_layer":5},{"type":"period","category":"Пустота / Холод","title":"Амур","desc":"Амур — немецкая овчарка, спасённая щенком, выходили. Я гуляла с ним в 5 лет. Из-за реакции на братика его отправили в питомник. Умер в 2006, я не видела его последние годы.","startDay":null,"startMonth":null,"startYear":1991,"endDay":null,"endMonth":null,"endYear":2006,"_layer":0},{"type":"event","category":"Тепло / радость","title":"Первая проба курения","desc":"С двоюродной сестрой на балконе пробовали дедушкин Беломорканал. Горько, противно, кашляли. Тайный, любопытный опыт. Сейчас вспоминаю с улыбкой — как забавную детскую историю.","day":null,"month":7,"year":1997,"_eventLayer":0,"_eventY":515.7142857142858,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Вторая проба курения","desc":"С Фаридой под крыльцом пробовали бычки с фильтром. Было противно. Тогда я решила, что курить не буду. Это решение повлияло на всю жизнь.","day":null,"month":7,"year":1999,"_eventLayer":0,"_eventY":726.6666666666666,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Водка из шкафчика","desc":"С двоюродной сестрой нашли в шкафчике два стакана с водкой. Выпили по глотку, было противно. Боялись, что заметят. Забавный детский эксперимент.","day":null,"month":null,"year":1997,"_eventLayer":0,"_eventY":481.42857142857144,"_hasText":true},{"type":"event","category":"Тепло / радость","title":"Блейзер в кафе","desc":"На 18-летие подруги Лены в кафе тайно пили блейзер. Боялись, что заметят. Было весело, смешно, немного страшно. Один из первых опытов «взрослых» посиделок с алкоголем.","day":null,"month":1,"year":2007,"_eventLayer":0,"_eventY":2899.259259259259,"_hasText":true},{"type":"period","category":"Пустота / Холод","title":"Уборка — постоянный фон в дневнике","desc":"Почти каждый день в дневнике 2005 года: «делали уборку». Папа требовал постоянно. Убирались я, сестра и брат (младшая была маленькой). Мама и папа не убирались.","startDay":null,"startMonth":5,"startYear":2005,"endDay":null,"endMonth":12,"endYear":2005,"_layer":10},{"type":"event","category":"Рост / Надежда / Ресурс","title":"Я появился (ась) на свет","desc":"","year":1990,"month":7,"day":19,"_eventLayer":0,"_eventY":66.66666666666667,"_hasText":true}],"birthDate":{"day":19,"month":7,"year":1990}}; 
+
+    let defaultCategories = [
+        { name: 'Тепло / радость', color: '#ffe600' },
+        { name: 'Рост / Ресурс', color: '#39ff14' },
+        { name: 'Боль / Страдание', color: '#ff3131' },
+        { name: 'Пустота / Холод', color: '#00bfff' },
+        { name: 'Травма / Отвержение', color: '#cccccc' },
+        { name: 'Бунт / Границы', color: '#bf40ff' },
+        { name: 'Тревога / Хаос', color: '#ff8c00' }
+    ];
+
+    let paletteColors = [
+        '#ffe600', '#39ff14', '#ff3131', '#00bfff', '#cccccc', '#bf40ff',
+        '#ff8c00', '#ff69b4', '#00ffcc', '#ccff00', '#ff007f', '#ffffff'
+    ];
+
+    let categories = []; 
+    let entries = []; 
+    let birthDate = null;
+    let zoomLevel = 50; 
+    let addType = 'event';
+    let hitAreas = [];
+    let editingIndex = -1;
+    let activeTooltipEntry = null;
+    let editingCatIndex = -1; 
+    let selectedColor = '#ffffff'; 
+
+    let currentFilters = {
+        type: 'all',
+        category: 'all',
+        startYear: null,
+        endYear: null
+    };
+
+    // --- ТЕМНАЯ ТЕМА ДЛЯ КАТЕГОРИЙ В PDF ---
+    function getPdfCatColor(hex) {
+        if (!hex) return '#333333';
+        if (hex === '#cccccc') return '#555555'; // Светло-серый -> темно-серый
+
+        let r = parseInt(hex.slice(1, 3), 16);
+        let g = parseInt(hex.slice(3, 5), 16);
+        let b = parseInt(hex.slice(5, 7), 16);
+        
+        let lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        let factor = lum > 180 ? 0.5 : 0.75;
+
+        r = Math.floor(r * factor);
+        g = Math.floor(g * factor);
+        b = Math.floor(b * factor);
+        
+        return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+
+    function loadData() {
+        if (preloadedData) {
+            categories = preloadedData.categories || [...defaultCategories];
+            entries = preloadedData.entries || [];
+            birthDate = preloadedData.birthDate || null;
+            
+            localStorage.setItem('ll_v2_categories', JSON.stringify(categories));
+            localStorage.setItem('ll_v2_entries', JSON.stringify(entries));
+            localStorage.setItem('ll_v2_birth', JSON.stringify(birthDate));
+        } else {
+            let savedCats = localStorage.getItem('ll_v2_categories');
+            if (savedCats) {
+                categories = JSON.parse(savedCats);
+            } else {
+                categories = [...defaultCategories];
+                localStorage.setItem('ll_v2_categories', JSON.stringify(categories));
+            }
+
+            let savedEntries = localStorage.getItem('ll_v2_entries');
+            if (savedEntries) entries = JSON.parse(savedEntries);
+            
+            let savedBirth = localStorage.getItem('ll_v2_birth');
+            if (savedBirth) birthDate = JSON.parse(savedBirth);
+
+            if (!entries || entries.length === 0) {
+                let oldEntries = localStorage.getItem('ll_entries');
+                if (oldEntries) {
+                    entries = JSON.parse(oldEntries);
+                    localStorage.setItem('ll_v2_entries', JSON.stringify(entries));
+                    
+                    let firstBirth = entries.find(e => e.title.toLowerCase().includes('родил') || e.title.toLowerCase().includes('появил'));
+                    if (firstBirth && firstBirth.year) {
+                        birthDate = { day: firstBirth.day || 1, month: firstBirth.month || 1, year: firstBirth.year };
+                        localStorage.setItem('ll_v2_birth', JSON.stringify(birthDate));
+                    }
+                }
+            }
+        }
+    }
+
+    function saveData() { localStorage.setItem('ll_v2_entries', JSON.stringify(entries)); }
+    function saveCategories() { localStorage.setItem('ll_v2_categories', JSON.stringify(categories)); }
+
+    function formatDate(e) {
+        if (e.type === 'event') {
+            let d = e.day ? String(e.day).padStart(2,'0') : null;
+            let m = e.month ? String(e.month).padStart(2,'0') : null;
+            if (d && m) return d + '.' + m + '.' + e.year;
+            if (m) return m + '.' + e.year;
+            return '' + e.year;
+        } else {
+            let sd = e.startDay ? String(e.startDay).padStart(2,'0') : '';
+            let sm = e.startMonth ? String(e.startMonth).padStart(2,'0') : '';
+            let ed = e.endDay ? String(e.endDay).padStart(2,'0') : '';
+            let em = e.endMonth ? String(e.endMonth).padStart(2,'0') : '';
+            let s = (sm ? sm + '.' : '') + (sd ? sd + '.' : '') + e.startYear;
+            let en = (em ? em + '.' : '') + (ed ? ed + '.' : '') + e.endYear;
+            return s + ' – ' + en;
+        }
+    }
+
+    function saveBirthDate() {
+        let d = parseInt(document.getElementById('bDay').value) || 1;
+        let m = parseInt(document.getElementById('bMonth').value) || 1;
+        let y = parseInt(document.getElementById('bYear').value);
+        if (!y) { alert('Укажи год рождения!'); return; }
+        
+        birthDate = { day: d, month: m, year: y };
+        localStorage.setItem('ll_v2_birth', JSON.stringify(birthDate));
+        
+        let birthCategory = categories.find(c => c.name === 'Рост / Ресурс') ? 'Рост / Ресурс' : (categories[0] ? categories[0].name : '');
+        
+        let existingBirth = entries.find(e => e.isBirth);
+        if (existingBirth) {
+            existingBirth.year = y;
+            existingBirth.month = m;
+            existingBirth.day = d;
+        } else {
+            entries.push({
+                type: 'event',
+                category: birthCategory,
+                title: 'Появился(ась) на свет',
+                desc: '',
+                year: y,
+                month: m,
+                day: d,
+                isBirth: true
+            });
+        }
+        saveData();
+
+        document.getElementById('birthModal').classList.remove('active');
+        renderCanvas();
+        centerCanvas();
+        initFiltersData();
+        renderList();
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        let map = { 'line': 0, 'events': 1, 'categories': 2, 'export': 3 };
+        document.querySelectorAll('.tab')[map[tabName]].classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+        
+        if (tabName === 'line') { renderCanvas(); centerCanvas(); }
+        if (tabName === 'events') { renderList(); }
+        if (tabName === 'categories') { renderCategories(); }
+    }
+
+    function getCatColor(name) {
+        let c = categories.find(x => x.name === name);
+        return c ? c.color : '#888';
+    }
+
+    function exportFile() {
+        let html = document.documentElement.outerHTML;
+        let dataStr = `const preloadedData = ${JSON.stringify({
+            categories: categories,
+            entries: entries,
+            birthDate: birthDate
+        })};`;
+        
+        let targetStr = 'const preloadedData = null;';
+        if (html.includes(targetStr)) {
+            html = html.replace(targetStr, dataStr);
+        } else {
+            html = html.replace(/const preloadedData = null;/g, dataStr);
+        }
+
+        let blob = new Blob([html], { type: 'text/html' });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'line_of_life.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function resetAll() {
+        if (confirm('Вы уверены? Все записи, категории и дата рождения будут удалены навсегда.')) {
+            localStorage.removeItem('ll_v2_entries');
+            localStorage.removeItem('ll_v2_birth');
+            localStorage.removeItem('ll_v2_categories');
+            localStorage.removeItem('ll_entries');
+            location.reload();
+        }
+    }
+
+    function buildPalette() {
+        let pal = document.getElementById('colorPalette');
+        pal.innerHTML = '';
+        paletteColors.forEach(color => {
+            let swatch = document.createElement('div');
+            swatch.className = 'color-swatch';
+            swatch.style.background = color;
+            swatch.dataset.color = color;
+            swatch.onclick = () => {
+                selectedColor = color;
+                updatePaletteSelection();
+            };
+            pal.appendChild(swatch);
+        });
+    }
+
+    function updatePaletteSelection() {
+        document.querySelectorAll('.color-swatch').forEach(s => {
+            s.classList.toggle('selected', s.dataset.color === selectedColor);
+        });
+    }
+
+    function renderCategories() {
+        let list = document.getElementById('catList');
+        list.innerHTML = '';
+        categories.forEach((c, idx) => {
+            let div = document.createElement('div');
+            div.className = 'cat-item';
+            div.innerHTML = `
+                <div style="display:flex; align-items:center;">
+                    <div class="cat-color" style="background:${c.color}"></div>
+                    <span style="font-size:1.1em;">${c.name}</span>
+                </div>
+                <div>
+                    <button onclick="openCategoryModal(${idx})" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteCategory(${idx})" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    function openCategoryModal(idx = -1) {
+        editingCatIndex = idx;
+        let modal = document.getElementById('catModal');
+        let title = document.getElementById('catModalTitle');
+        let nameInput = document.getElementById('catNameInput');
+
+        if (idx >= 0) {
+            title.textContent = 'Редактировать категорию';
+            nameInput.value = categories[idx].name;
+            selectedColor = categories[idx].color;
+        } else {
+            title.textContent = 'Новая категория';
+            nameInput.value = '';
+            selectedColor = '#ffffff';
+        }
+        
+        buildPalette();
+        updatePaletteSelection();
+        modal.classList.add('active');
+    }
+
+    function saveCategory() {
+        let name = document.getElementById('catNameInput').value.trim();
+        if (!name) { alert('Введи название категории!'); return; }
+
+        let duplicate = categories.find((c, i) => c.name.toLowerCase() === name.toLowerCase() && i !== editingCatIndex);
+        if (duplicate) { alert('Категория с таким названием уже существует!'); return; }
+
+        if (editingCatIndex >= 0) {
+            let oldName = categories[editingCatIndex].name;
+            categories[editingCatIndex] = { name: name, color: selectedColor };
+            if (oldName !== name) {
+                entries.forEach(e => { if (e.category === oldName) e.category = name; });
+                saveData();
+            }
+        } else {
+            categories.push({ name: name, color: selectedColor });
+        }
+
+        saveCategories();
+        document.getElementById('catModal').classList.remove('active');
+        renderCategories(); renderCanvas(); renderList(); initFiltersData(); updateCatSelect();
+    }
+
+    function deleteCategory(idx) {
+        let catName = categories[idx].name;
+        let count = entries.filter(e => e.category === catName).length;
+        let msg = `Вы действительно хотите удалить категорию "${catName}"?`;
+        if (count > 0) msg += `\n\nВнимание! Все записи в этой категории (${count} шт.) также будут удалены.`;
+        
+        if (confirm(msg)) {
+            entries = entries.filter(e => e.category !== catName);
+            saveData();
+            categories.splice(idx, 1);
+            saveCategories();
+            renderCategories(); renderCanvas(); renderList(); initFiltersData(); updateCatSelect();
+        }
+    }
+
+    function updateCatSelect() {
+        let sel = document.getElementById('catSelect');
+        if (!sel) return;
+        sel.innerHTML = '';
+        categories.forEach(c => {
+            let opt = document.createElement('option');
+            opt.value = c.name; opt.textContent = c.name;
+            sel.appendChild(opt);
+        });
+    }
+
+    // --- PDF СПИСКА ---
+    function downloadPDF() {
+        let filtered = getFilteredEntries();
+        if (filtered.length === 0) { alert('Нет записей для экспорта.'); return; }
+
+        let getTimeValue = (e) => e.type === 'event' ? e.year * 10000 + (e.month || 6) * 100 + (e.day || 15) : e.startYear * 10000 + (e.startMonth || 6) * 100 + (e.startDay || 15);
+        filtered.sort((a, b) => getTimeValue(a) - getTimeValue(b));
+
+        let html = `
+        <!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Линия Жизни</title>
+        <style>
+            @page { size: A4; margin: 1.2cm; @bottom-right { content: counter(page) " / " counter(pages); font-family: 'Times New Roman'; font-size: 9pt; color: #666; } }
+            body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.4; color: #000; background: #fff; margin: 0; padding: 0; }
+            h1 { text-align: center; font-size: 16pt; margin-bottom: 20px; margin-top: 0; }
+            .entry { margin-bottom: 12px; page-break-inside: avoid; }
+            .entry-row { display: flex; align-items: baseline; }
+            .icon { font-size: 14pt; margin-right: 8px; display: inline-block; width: 20px; text-align: center; }
+            .title { font-weight: bold; margin-right: 8px; }
+            .date { font-weight: bold; margin-right: 8px; }
+            .desc { font-style: italic; margin-left: 28px; margin-top: 4px; }
+        </style></head><body><h1>Линия Жизни</h1>`;
+
+        filtered.forEach(e => {
+            let color = getCatColor(e.category);
+            if (color === '#cccccc') color = '#555555';
+            let icon = e.isBirth ? '★' : (e.type === 'event' ? '●' : '◆');
+            let desc = e.desc ? `<div class="desc">${e.desc}</div>` : '';
+            html += `<div class="entry"><div class="entry-row"><span class="icon" style="color: ${color};">${icon}</span><span class="date">${formatDate(e)}</span><span class="title">${e.title}</span></div>${desc}</div>`;
+        });
+
+        html += `</body></html>`;
+        let printWindow = window.open('', '_blank');
+        if (!printWindow) { alert('Разрешите всплывающие окна.'); return; }
+        printWindow.document.write(html); printWindow.document.close();
+        printWindow.onload = function() { printWindow.focus(); printWindow.print(); };
+    }
+
+    // --- PDF ЛИНИИ (С ИСПРАВЛЕННОЙ НАРЕЗКОЙ) ---
+    function downloadCanvasPDF() {
+        if (!birthDate || entries.length === 0) { alert('Линия пуста'); return; }
+
+        // 1. Считаем размеры для новой отрисовки
+        let minYear = birthDate.year; let maxYear = birthDate.year;
+        entries.forEach(e => {
+            let start = e.type === 'event' ? e.year : e.startYear;
+            let end = e.type === 'event' ? e.year : e.endYear;
+            if (start < minYear) minYear = start;
+            if (end > maxYear) maxYear = end;
+        });
+
+        let events = entries.filter(e => e.type === 'event');
+        let periods = entries.filter(e => e.type === 'period');
+
+        events.sort((a, b) => {
+            let aDate = a.year + (a.month || 6)/12 + (a.day || 15)/365;
+            let bDate = b.year + (b.month || 6)/12 + (b.day || 15)/365;
+            return aDate - bDate;
+        });
+
+        let yearY = {}; let yearHeights = {}; let currentY = 100; 
+
+        for (let y = minYear; y <= maxYear; y++) {
+            let evInYear = events.filter(e => e.year === y).length;
+            let baseStep = 30; 
+            let h = Math.max(evInYear * baseStep, 60); 
+            yearY[y] = currentY; yearHeights[y] = h; currentY += h;
+        }
+
+        let totalHeight = currentY + 100;
+        let pointRadius = 6; 
+
+        // 2. Раскладка периодов
+        periods.sort((a, b) => a.startYear - b.startYear);
+        let periodLayers = []; 
+        
+        periods.forEach(p => {
+            let pStart = p.startYear; let pEnd = p.endYear;
+            let yStartP = yearY[pStart] + (p.startMonth ? getYearFraction(pStart, p.startMonth, p.startDay, false) * yearHeights[pStart] : 0);
+            let yEndP = yearY[pEnd] + (p.endMonth ? getYearFraction(pEnd, p.endMonth, p.endDay, true) * yearHeights[pEnd] : yearHeights[pEnd]);
+            
+            let placed = false;
+            for (let layerIdx = 0; layerIdx < periodLayers.length; layerIdx++) {
+                let layer = periodLayers[layerIdx];
+                let hasCollision = layer.some(o => {
+                    let yearOverlap = !(pEnd + 1 < o.startYear || pStart > o.endYear + 1);
+                    let yStartO = yearY[o.startYear] + (o.startMonth ? getYearFraction(o.startYear, o.startMonth, o.startDay, false) * yearHeights[o.startYear] : 0);
+                    let yEndO = yearY[o.endYear] + (o.endMonth ? getYearFraction(o.endYear, o.endMonth, o.endDay, true) * yearHeights[o.endYear] : yearHeights[o.endYear]);
+                    let pixelOverlap = !(yEndP + 10 < yStartO || yStartP > yEndO + 10);
+                    return yearOverlap || pixelOverlap;
+                });
+                if (!hasCollision) { layer.push(p); p._layer = layerIdx; placed = true; break; }
+            }
+            if (!placed) { p._layer = periodLayers.length; periodLayers.push([p]); }
+        });
+
+        let numPeriodCols = Math.max(1, periodLayers.length);
+
+        // 3. Раскладка событий
+        let eventsByYear = {};
+        events.forEach(e => {
+            if (!eventsByYear[e.year]) eventsByYear[e.year] = [];
+            eventsByYear[e.year].push(e);
+        });
+
+        let allEventsWithY = [];
+        for (let yStr in eventsByYear) {
+            let y = parseInt(yStr); let evs = eventsByYear[y];
+            let yBase = yearY[y] || 40; let yearH = yearHeights[y] || 30;
+            
+            evs.sort((a, b) => {
+                let aD = (a.month || 6)/12 + (a.day || 15)/365;
+                let bD = (b.month || 6)/12 + (b.day || 15)/365;
+                return aD - bD;
+            });
+
+            let step = yearH / (evs.length + 0.5); 
+            if (step < 24) step = 24; 
+
+            evs.forEach((entry, index) => {
+                let idealY = yBase + step * 0.5 + index * step;
+                allEventsWithY.push({ entry: entry, idealY: idealY, year: y });
+            });
+        }
+
+        allEventsWithY.sort((a, b) => a.idealY - b.idealY);
+        let eventLayersArr = []; 
+        
+        allEventsWithY.forEach(item => {
+            let placed = false;
+            for (let layerIdx = 0; layerIdx < eventLayersArr.length; layerIdx++) {
+                let layer = eventLayersArr[layerIdx];
+                let minDist = 24; 
+                let hasCollision = layer.some(o => Math.abs(o.y - item.idealY) < minDist);
+                if (!hasCollision) {
+                    layer.push({ entry: item.entry, y: item.idealY });
+                    item.entry._eventLayer = layerIdx; item.entry._eventY = item.idealY; placed = true; break;
+                }
+            }
+            if (!placed) {
+                item.entry._eventLayer = eventLayersArr.length; item.entry._eventY = item.idealY;
+                eventLayersArr.push([{ entry: item.entry, y: item.idealY }]);
+            }
+        });
+
+        let numEventCols = Math.max(1, eventLayersArr.length);
+
+        // 4. Размеры временного холста
+        let textLeftWidth = 350; 
+        let textRightWidth = 350; 
+        let colsLeftWidth = numEventCols * 30; 
+        let colsRightWidth = numPeriodCols * 20; 
+        
+        let canvasWidth = textLeftWidth + colsLeftWidth + 100 + colsRightWidth + textRightWidth; 
+        let canvasHeight = totalHeight;
+        let centerX = textLeftWidth + colsLeftWidth + 50; 
+
+        let tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasWidth;
+        tempCanvas.height = canvasHeight;
+        let ctx = tempCanvas.getContext('2d');
+
+        // 5. Отрисовка (СВЕТЛАЯ ТЕМА)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(centerX, 50); ctx.lineTo(centerX, canvasHeight - 50); ctx.stroke();
+
+        for (let y = minYear; y <= maxYear; y++) {
+            let yPos = yearY[y]; let age = y - birthDate.year;
+            ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(centerX - 15, yPos); ctx.lineTo(centerX + 15, yPos); ctx.stroke();
+            
+            ctx.fillStyle = '#000000'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(y, centerX, yPos - 6); 
+
+            let isFive = (y - birthDate.year) % 5 === 0;
+            if (isFive) {
+                ctx.strokeStyle = '#eeeeee';
+                ctx.beginPath(); ctx.moveTo(20, yPos); ctx.lineTo(canvasWidth - 20, yPos); ctx.stroke();
+                ctx.fillStyle = '#666666'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'right';
+                ctx.fillText(age + ' лет', canvasWidth - 20, yPos + 4);
+            }
+        }
+
+        let maxUsedPeriodLayer = 0;
+        periods.forEach(p => { if (p._layer > maxUsedPeriodLayer) maxUsedPeriodLayer = p._layer; });
+        let textColumnX = centerX + 40 + (maxUsedPeriodLayer + 1) * 20; 
+
+        let periodTextsY = [];
+
+        periods.forEach(entry => {
+            let color = getPdfCatColor(getCatColor(entry.category));
+            let yStart = yearY[entry.startYear] + (entry.startMonth ? getYearFraction(entry.startYear, entry.startMonth, entry.startDay, false) * yearHeights[entry.startYear] : 0);
+            let yEnd = yearY[entry.endYear] + (entry.endMonth ? getYearFraction(entry.endYear, entry.endMonth, entry.endDay, true) * yearHeights[entry.endYear] : yearHeights[entry.endYear]);
+            
+            let barX = centerX + 40 + (entry._layer * 20); let height = yEnd - yStart;
+            
+            if (height < 15) {
+                let midY = (yStart + yEnd) / 2;
+                ctx.fillStyle = color;
+                ctx.beginPath(); ctx.moveTo(barX + 3, midY - 8); ctx.lineTo(barX + 11, midY); ctx.lineTo(barX + 3, midY + 8); ctx.lineTo(barX - 5, midY); ctx.closePath(); ctx.fill();
+            } else {
+                ctx.fillStyle = color; ctx.globalAlpha = 1;
+                ctx.fillRect(barX, yStart, 8, height); 
+                ctx.globalAlpha = 1;
+            }
+
+            let txt = entry.title;
+            let textY = yStart + 14;
+            while (periodTextsY.some(ty => Math.abs(ty - textY) < 18)) { textY += 18; }
+            periodTextsY.push(textY);
+
+            ctx.strokeStyle = color; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(barX + 8, (height < 15 ? (yStart+yEnd)/2 : yStart + 5)); ctx.lineTo(textColumnX - 5, textY - 5); ctx.stroke(); ctx.globalAlpha = 1;
+
+            ctx.fillStyle = '#000000'; ctx.font = '12px sans-serif'; ctx.textAlign = 'left'; 
+            ctx.fillText(txt, textColumnX, textY);
+        });
+
+        allEventsWithY.forEach(item => {
+            let entry = item.entry; let color = getPdfCatColor(getCatColor(entry.category));
+            let layer = entry._eventLayer; let pointX = centerX - 40 - layer * 30; let pointY = entry._eventY;
+
+            ctx.fillStyle = color; 
+            
+            if (entry.isBirth) {
+                ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('★', pointX, pointY);
+            } else {
+                ctx.beginPath(); ctx.arc(pointX, pointY, pointRadius, 0, Math.PI * 2); ctx.fill(); 
+            }
+
+            let dateStr = formatDate(entry);
+            let titleStr = entry.title;
+            
+            ctx.font = 'bold 12px sans-serif'; 
+            let dateWidth = ctx.measureText(dateStr + ' ').width;
+            
+            ctx.font = '12px sans-serif';
+            let titleWidth = ctx.measureText(titleStr).width;
+            
+            let totalTextWidth = dateWidth + titleWidth;
+            let textRightX = pointX - 15;
+
+            ctx.strokeStyle = color; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(pointX, pointY); ctx.lineTo(textRightX - totalTextWidth, pointY); ctx.stroke(); 
+            ctx.globalAlpha = 1;
+
+            ctx.fillStyle = '#000000'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'left';
+            ctx.fillText(dateStr + ' ', textRightX - totalTextWidth, pointY + 4);
+            
+            ctx.font = '12px sans-serif'; 
+            ctx.fillText(titleStr, textRightX - totalTextWidth + dateWidth, pointY + 4);
+        });
+
+        // 6. Нарезка на листы A4 (только по высоте!)
+        let pageWidth = 1123; let pageHeight = 794; let margin = 20;
+        let contentWidth = pageWidth - margin * 2; let contentHeight = pageHeight - margin * 2;
+        
+        // Масштаб: ширина холста должна влезть в contentWidth
+        let scale = contentWidth / tempCanvas.width; 
+        
+        // Сколько строк (листов) нужно
+        let rowsCount = Math.ceil((tempCanvas.height * scale) / contentHeight);
+        
+        let html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Линия Жизни - Графика</title>
+        <style>
+            @page { size: A4 landscape; margin: 0; }
+            body { margin: 0; padding: 0; background: #fff; font-family: 'Times New Roman', Times, serif; }
+            .page { width: ${pageWidth}px; height: ${pageHeight}px; box-sizing: border-box; padding: ${margin}px; page-break-after: always; position: relative; overflow: hidden; }
+            .page:last-child { page-break-after: auto; }
+            .img-container { width: 100%; height: 100%; overflow: hidden; position: relative; display: flex; justify-content: center; align-items: flex-start; }
+            img { display: block; max-width: 100%; }
+            .footer-text { position: absolute; bottom: ${margin}px; right: ${margin}px; font-size: 10pt; color: #000; z-index: 10; background: rgba(255,255,255,0.8); padding: 2px 6px; }
+        </style></head><body>`;
+
+        let pageNum = 1; let totalPages = rowsCount;
+        
+        for (let r = 0; r < rowsCount; r++) {
+            // Координаты вырезки по вертикали (в пикселях исходного холста)
+            let sy = (r * contentHeight) / scale;
+            let sHeight = contentHeight / scale;
+            if (sy + sHeight > tempCanvas.height) sHeight = tempCanvas.height - sy;
+            
+            // Создаем кусок
+            let cutCanvas = document.createElement('canvas');
+            cutCanvas.width = tempCanvas.width;
+            cutCanvas.height = sHeight;
+            let cutCtx = cutCanvas.getContext('2d');
+            cutCtx.fillStyle = '#fff'; cutCtx.fillRect(0, 0, cutCanvas.width, cutCanvas.height);
+            cutCtx.drawImage(tempCanvas, 0, sy, tempCanvas.width, sHeight, 0, 0, tempCanvas.width, sHeight);
+            
+            let cutDataUrl = cutCanvas.toDataURL('image/png');
+            // Вставляем картинку и подгоняем по ширине через CSS (max-width: 100%)
+            html += `<div class="page"><div class="img-container"><img src="${cutDataUrl}" style="width: 100%; object-fit: contain;"></div><div class="footer-text">Лист ${pageNum} из ${totalPages}</div></div>`;
+            pageNum++;
+        }
+        html += `</body></html>`;
+
+        let printWindow = window.open('', '_blank');
+        if (!printWindow) { alert('Разрешите всплывающие окна.'); return; }
+        printWindow.document.write(html); printWindow.document.close();
+        printWindow.onload = function() { printWindow.focus(); printWindow.print(); };
+    }
+
+    // --- ОСТАЛЬНЫЕ ФУНКЦИИ ---
+    function getFilteredEntries() {
+        return entries.filter(e => {
+            if (currentFilters.type !== 'all' && e.type !== currentFilters.type) return false;
+            if (currentFilters.category !== 'all' && e.category !== currentFilters.category) return false;
+            let eStart = e.type === 'event' ? e.year : e.startYear;
+            let eEnd = e.type === 'event' ? e.year : e.endYear;
+            if (currentFilters.startYear !== null && currentFilters.endYear !== null) {
+                if (eEnd < currentFilters.startYear || eStart > currentFilters.endYear) return false;
+            }
+            return true;
+        });
+    }
+
+    function initFiltersData() {
+        let catFilter = document.getElementById('filterCategory');
+        catFilter.innerHTML = '<option value="all">Все категории</option>';
+        categories.forEach(c => {
+            let opt = document.createElement('option'); opt.value = c.name; opt.textContent = c.name; catFilter.appendChild(opt);
+        });
+
+        let years = new Set();
+        entries.forEach(e => {
+            if (e.type === 'event') years.add(e.year);
+            else { years.add(e.startYear); years.add(e.endYear); }
+        });
+        let sortedYears = Array.from(years).sort((a,b) => a-b);
+        let startSel = document.getElementById('filterYearStart');
+        let endSel = document.getElementById('filterYearEnd');
+        startSel.innerHTML = ''; endSel.innerHTML = '';
+        
+        if (sortedYears.length > 0) {
+            sortedYears.forEach(y => {
+                let opt1 = document.createElement('option'); opt1.value = y; opt1.textContent = y; startSel.appendChild(opt1);
+                let opt2 = document.createElement('option'); opt2.value = y; opt2.textContent = y; endSel.appendChild(opt2);
+            });
+            startSel.value = currentFilters.startYear !== null ? currentFilters.startYear : sortedYears[0];
+            endSel.value = currentFilters.endYear !== null ? currentFilters.endYear : sortedYears[sortedYears.length - 1];
+        }
+        document.getElementById('filterType').value = currentFilters.type;
+        document.getElementById('filterCategory').value = currentFilters.category;
+    }
+
+    function openFilterModal() { initFiltersData(); document.getElementById('filterModal').classList.add('active'); }
+
+    function applyFilters() {
+        currentFilters.type = document.getElementById('filterType').value;
+        currentFilters.category = document.getElementById('filterCategory').value;
+        let sy = document.getElementById('filterYearStart').value;
+        let ey = document.getElementById('filterYearEnd').value;
+        currentFilters.startYear = sy ? parseInt(sy) : null;
+        currentFilters.endYear = ey ? parseInt(ey) : null;
+
+        let btn = document.getElementById('btnOpenFilters');
+        let startSel = document.getElementById('filterYearStart');
+        let endSel = document.getElementById('filterYearEnd');
+        let isActive = (currentFilters.type !== 'all' || currentFilters.category !== 'all');
+        if (startSel.options.length > 0 && (currentFilters.startYear !== parseInt(startSel.options[0].value) || currentFilters.endYear !== parseInt(endSel.options[endSel.options.length-1].value))) isActive = true;
+
+        btn.classList.toggle('active', isActive);
+        btn.textContent = isActive ? 'Фильтр ●' : 'Фильтр';
+
+        document.getElementById('filterModal').classList.remove('active');
+        renderList();
+    }
+
+    function resetFilters() {
+        document.getElementById('filterType').value = 'all';
+        document.getElementById('filterCategory').value = 'all';
+        let startSel = document.getElementById('filterYearStart');
+        let endSel = document.getElementById('filterYearEnd');
+        if (startSel.options.length > 0) {
+            startSel.value = startSel.options[0].value;
+            endSel.value = endSel.options[endSel.options.length - 1].value;
+        }
+        applyFilters();
+    }
+
+    function openAddModal(editIdx = -1) {
+        if (!birthDate) { document.getElementById('birthModal').classList.add('active'); return; }
+        hideTooltip();
+        editingIndex = editIdx;
+        document.getElementById('addTitle').textContent = editIdx >= 0 ? 'Редактировать запись' : 'Новая запись';
+        
+        document.getElementById('titleInput').disabled = false;
+        ['evDay','evMonth','evYear','pStartDay','pStartMonth','pStartYear','pEndDay','pEndMonth','pEndYear'].forEach(id => document.getElementById(id).disabled = false);
+        document.getElementById('btnTypeEvent').disabled = false;
+        document.getElementById('btnTypePeriod').disabled = false;
+        document.getElementById('btnTypeEvent').style.opacity = '1';
+        document.getElementById('btnTypePeriod').style.opacity = '1';
+
+        if (editIdx >= 0) {
+            let e = entries[editIdx];
+            setAddType(e.type);
+            document.getElementById('catSelect').value = e.category;
+            document.getElementById('titleInput').value = e.title;
+            document.getElementById('descInput').value = e.desc || '';
+
+            if (e.isBirth) {
+                document.getElementById('titleInput').disabled = true;
+                document.getElementById('evDay').disabled = true;
+                document.getElementById('evMonth').disabled = true;
+                document.getElementById('evYear').disabled = true;
+                document.getElementById('btnTypeEvent').disabled = true;
+                document.getElementById('btnTypePeriod').disabled = true;
+                document.getElementById('btnTypeEvent').style.opacity = '0.5';
+                document.getElementById('btnTypePeriod').style.opacity = '0.5';
+            }
+
+            if (e.type === 'event') {
+                document.getElementById('evYear').value = e.year || '';
+                document.getElementById('evMonth').value = e.month || '';
+                document.getElementById('evDay').value = e.day || '';
+            } else {
+                document.getElementById('pStartYear').value = e.startYear || '';
+                document.getElementById('pStartMonth').value = e.startMonth || '';
+                document.getElementById('pStartDay').value = e.startDay || '';
+                document.getElementById('pEndYear').value = e.endYear || '';
+                document.getElementById('pEndMonth').value = e.endMonth || '';
+                document.getElementById('pEndDay').value = e.endDay || '';
+            }
+        } else {
+            setAddType('event');
+            document.getElementById('catSelect').value = categories[0] ? categories[0].name : '';
+            document.getElementById('titleInput').value = '';
+            document.getElementById('descInput').value = '';
+            ['evDay','evMonth','evYear','pStartDay','pStartMonth','pStartYear','pEndDay','pEndMonth','pEndYear'].forEach(id => document.getElementById(id).value = '');
+        }
+        document.getElementById('addModal').classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('addModal').classList.remove('active'); editingIndex = -1; }
+
+    function setAddType(type) {
+        addType = type;
+        document.getElementById('btnTypeEvent').classList.toggle('active', type === 'event');
+        document.getElementById('btnTypePeriod').classList.toggle('active', type === 'period');
+        document.getElementById('fieldsEvent').style.display = type === 'event' ? 'block' : 'none';
+        document.getElementById('fieldsPeriod').style.display = type === 'period' ? 'block' : 'none';
+    }
+
+    function updateZoom() {
+        zoomLevel = parseInt(document.getElementById('zoomSlider').value);
+        document.getElementById('zoomLabel').textContent = zoomLevel + '%';
+        renderCanvas();
+    }
+
+    function centerCanvas() {
+        let wrapper = document.getElementById('canvasWrapper');
+        let canvas = document.getElementById('canvas');
+        wrapper.scrollLeft = (canvas.width / 2) - (wrapper.clientWidth / 2);
+    }
+
+    function saveEntry() {
+        let title = document.getElementById('titleInput').value.trim();
+        let desc = document.getElementById('descInput').value.trim();
+        let cat = document.getElementById('catSelect').value;
+        
+        if (!title && !(editingIndex >= 0 && entries[editingIndex].isBirth)) { alert('Введи название!'); return; }
+
+        let newEntry = { type: addType, category: cat, title: title || (editingIndex >= 0 ? entries[editingIndex].title : ''), desc: desc };
+
+        if (addType === 'event') {
+            let y = parseInt(document.getElementById('evYear').value);
+            if (!y) { alert('Нужен хотя бы год!'); return; }
+            newEntry.year = y; newEntry.month = parseInt(document.getElementById('evMonth').value) || null; newEntry.day = parseInt(document.getElementById('evDay').value) || null;
+        } else {
+            let sy = parseInt(document.getElementById('pStartYear').value); let ey = parseInt(document.getElementById('pEndYear').value);
+            if (!sy || !ey) { alert('Нужны годы начала и конца!'); return; }
+            newEntry.startYear = sy; newEntry.endYear = ey;
+            newEntry.startMonth = parseInt(document.getElementById('pStartMonth').value) || null; newEntry.startDay = parseInt(document.getElementById('pStartDay').value) || null;
+            newEntry.endMonth = parseInt(document.getElementById('pEndMonth').value) || null; newEntry.endDay = parseInt(document.getElementById('pEndDay').value) || null;
+        }
+
+        if (editingIndex >= 0) {
+            if (entries[editingIndex].isBirth) newEntry.isBirth = true;
+            entries[editingIndex] = newEntry;
+        } else {
+            entries.push(newEntry);
+        }
+        saveData(); closeModal(); renderCanvas(); initFiltersData(); renderList(); hideTooltip();
+    }
+
+    function getYearFraction(year, month, day, isEnd) {
+        if (!month) return isEnd ? 1 : 0;
+        let m = month; let d = day || 1;
+        if (isEnd && !day) { let nextMonth = m + 1; d = (nextMonth === 2) ? 28 : ([4,6,9,11].includes(nextMonth) ? 30 : 31); }
+        let daysInMonths = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let daysPassed = 0;
+        for (let i = 0; i < m - 1; i++) daysPassed += daysInMonths[i];
+        daysPassed += d - 1;
+        return Math.min(1, Math.max(0, daysPassed / 365));
+    }
+
+    function renderCanvas() {
+        let canvas = document.getElementById('canvas');
+        let wrapper = document.getElementById('canvasWrapper');
+        let ctx = canvas.getContext('2d');
+        
+        if (!birthDate) return;
+
+        if (entries.length === 0) {
+            canvas.width = wrapper.clientWidth || 400; canvas.height = 400;
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#555'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('Пока пусто. Добавь первое событие!', canvas.width/2, 200);
+            return;
+        }
+
+        let minYear = birthDate.year; let maxYear = birthDate.year;
+        entries.forEach(e => {
+            let start = e.type === 'event' ? e.year : e.startYear;
+            let end = e.type === 'event' ? e.year : e.endYear;
+            if (start < minYear) minYear = start;
+            if (end > maxYear) maxYear = end;
+        });
+
+        let events = entries.filter(e => e.type === 'event');
+        let periods = entries.filter(e => e.type === 'period');
+
+        events.sort((a, b) => {
+            let aDate = a.year + (a.month || 6)/12 + (a.day || 15)/365;
+            let bDate = b.year + (b.month || 6)/12 + (b.day || 15)/365;
+            return aDate - bDate;
+        });
+
+        let zoomFactor = zoomLevel / 50; let yearY = {}; let yearHeights = {}; let currentY = 50; 
+
+        for (let y = minYear; y <= maxYear; y++) {
+            let evInYear = events.filter(e => e.year === y).length;
+            let baseStep = 20 * zoomFactor; 
+            let h = Math.max(evInYear * baseStep, 25 * zoomFactor); 
+            yearY[y] = currentY; yearHeights[y] = h; currentY += h;
+        }
+
+        let totalHeight = currentY + 50;
+        let showText = zoomLevel > 15; let pointRadius = zoomLevel > 20 ? 5 : 4; 
+
+        periods.sort((a, b) => a.startYear - b.startYear);
+        let periodLayers = []; 
+        
+        periods.forEach(p => {
+            let pStart = p.startYear; let pEnd = p.endYear;
+            let yStartP = yearY[pStart] + (p.startMonth ? getYearFraction(pStart, p.startMonth, p.startDay, false) * yearHeights[pStart] : 0);
+            let yEndP = yearY[pEnd] + (p.endMonth ? getYearFraction(pEnd, p.endMonth, p.endDay, true) * yearHeights[pEnd] : yearHeights[pEnd]);
+            
+            let placed = false;
+            for (let layerIdx = 0; layerIdx < periodLayers.length; layerIdx++) {
+                let layer = periodLayers[layerIdx];
+                let hasCollision = layer.some(o => {
+                    let yearOverlap = !(pEnd + 1 < o.startYear || pStart > o.endYear + 1);
+                    let yStartO = yearY[o.startYear] + (o.startMonth ? getYearFraction(o.startYear, o.startMonth, o.startDay, false) * yearHeights[o.startYear] : 0);
+                    let yEndO = yearY[o.endYear] + (o.endMonth ? getYearFraction(o.endYear, o.endMonth, o.endDay, true) * yearHeights[o.endYear] : yearHeights[o.endYear]);
+                    let pixelOverlap = !(yEndP + 10 < yStartO || yStartP > yEndO + 10);
+                    return yearOverlap || pixelOverlap;
+                });
+                if (!hasCollision) { layer.push(p); p._layer = layerIdx; placed = true; break; }
+            }
+            if (!placed) { p._layer = periodLayers.length; periodLayers.push([p]); }
+        });
+
+        let numPeriodCols = Math.max(1, periodLayers.length);
+
+        let eventsByYear = {};
+        events.forEach(e => {
+            if (!eventsByYear[e.year]) eventsByYear[e.year] = [];
+            eventsByYear[e.year].push(e);
+        });
+
+        let allEventsWithY = [];
+        for (let yStr in eventsByYear) {
+            let y = parseInt(yStr); let evs = eventsByYear[y];
+            let yBase = yearY[y] || 40; let yearH = yearHeights[y] || 30;
+            
+            evs.sort((a, b) => {
+                let aD = (a.month || 6)/12 + (a.day || 15)/365;
+                let bD = (b.month || 6)/12 + (b.day || 15)/365;
+                return aD - bD;
+            });
+
+            let step = yearH / (evs.length + 0.5); 
+            if (step < 16 * zoomFactor) step = 16 * zoomFactor;
+
+            evs.forEach((entry, index) => {
+                let idealY = yBase + step * 0.5 + index * step;
+                allEventsWithY.push({ entry: entry, idealY: idealY, year: y });
+            });
+        }
+
+        allEventsWithY.sort((a, b) => a.idealY - b.idealY);
+        let eventLayersArr = []; 
+        
+        allEventsWithY.forEach(item => {
+            let placed = false;
+            for (let layerIdx = 0; layerIdx < eventLayersArr.length; layerIdx++) {
+                let layer = eventLayersArr[layerIdx];
+                let minDist = 20; 
+                let hasCollision = layer.some(o => Math.abs(o.y - item.idealY) < minDist);
+                if (!hasCollision) {
+                    layer.push({ entry: item.entry, y: item.idealY });
+                    item.entry._eventLayer = layerIdx; item.entry._eventY = item.idealY; placed = true; break;
+                }
+            }
+            if (!placed) {
+                item.entry._eventLayer = eventLayersArr.length; item.entry._eventY = item.idealY;
+                eventLayersArr.push([{ entry: item.entry, y: item.idealY }]);
+            }
+        });
+
+        let numEventCols = Math.max(1, eventLayersArr.length);
+
+        let textLeftWidth = 150; let textRightWidth = 150; 
+        let colsLeftWidth = numEventCols * 20; let colsRightWidth = numPeriodCols * 16; 
+        
+        let minCanvasWidth = textLeftWidth + colsLeftWidth + 80 + colsRightWidth + textRightWidth;
+        let canvasWidth = Math.max(wrapper.clientWidth, minCanvasWidth); 
+        let centerX = textLeftWidth + colsLeftWidth + 40; 
+
+        canvas.width = canvasWidth; canvas.height = Math.max(totalHeight, 600);
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvasWidth, canvas.height);
+
+        let scaleX = canvasWidth - 20;
+        hitAreas = []; 
+
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(centerX, 30); ctx.lineTo(centerX, canvas.height - 30); ctx.stroke();
+
+        for (let y = minYear; y <= maxYear; y++) {
+            let yPos = yearY[y]; let age = y - birthDate.year;
+            ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(centerX - 10, yPos); ctx.lineTo(centerX + 10, yPos); ctx.stroke();
+            
+            ctx.fillStyle = '#888'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(y, centerX, yPos - 4); 
+
+            let isFive = (y - birthDate.year) % 5 === 0;
+            if (isFive) {
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.beginPath(); ctx.moveTo(10, yPos); ctx.lineTo(canvasWidth - 10, yPos); ctx.stroke();
+                ctx.fillStyle = '#888'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'right';
+                ctx.fillText(age + ' лет', scaleX, yPos + 3);
+            }
+        }
+
+        let maxUsedPeriodLayer = 0;
+        periods.forEach(p => { if (p._layer > maxUsedPeriodLayer) maxUsedPeriodLayer = p._layer; });
+        let textColumnX = centerX + 20 + (maxUsedPeriodLayer + 1) * 16 + 10; 
+
+        let periodTextsY = [];
+
+        periods.forEach(entry => {
+            let color = getCatColor(entry.category);
+            let yStart = yearY[entry.startYear] + (entry.startMonth ? getYearFraction(entry.startYear, entry.startMonth, entry.startDay, false) * yearHeights[entry.startYear] : 0);
+            let yEnd = yearY[entry.endYear] + (entry.endMonth ? getYearFraction(entry.endYear, entry.endMonth, entry.endDay, true) * yearHeights[entry.endYear] : yearHeights[entry.endYear]);
+            
+            let barX = centerX + 20 + (entry._layer * 16); let height = yEnd - yStart;
+            
+            if (height < 15) {
+                let midY = (yStart + yEnd) / 2;
+                hitAreas.push({ cx: barX + 3, cy: midY, radius: 20, entry: entry });
+                ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 6;
+                ctx.beginPath(); ctx.moveTo(barX + 3, midY - 6); ctx.lineTo(barX + 9, midY); ctx.lineTo(barX + 3, midY + 6); ctx.lineTo(barX - 3, midY); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+            } else {
+                hitAreas.push({ x1: barX - 15, y1: yStart, x2: barX + 25, y2: yEnd, entry: entry });
+                ctx.fillStyle = color; ctx.globalAlpha = 0.8; ctx.fillRect(barX, yStart, 6, height); ctx.globalAlpha = 1;
+            }
+
+            if (showText) {
+                let txt = entry.title.length > 20 ? entry.title.substring(0, 18) + '…' : entry.title;
+                let textY = yStart + 10;
+                while (periodTextsY.some(ty => Math.abs(ty - textY) < 14)) { textY += 14; }
+                periodTextsY.push(textY);
+
+                let txtW = ctx.measureText(txt).width;
+                hitAreas.push({ x1: textColumnX, y1: textY - 12, x2: textColumnX + txtW, y2: textY + 4, entry: entry });
+
+                ctx.strokeStyle = color; ctx.globalAlpha = 0.3; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(barX + 6, (height < 15 ? (yStart+yEnd)/2 : yStart + 5)); ctx.lineTo(textColumnX - 5, textY - 4); ctx.stroke(); ctx.globalAlpha = 1;
+
+                ctx.fillStyle = '#aaa'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(txt, textColumnX, textY);
+            }
+        });
+
+        eventLayersArr.forEach(layer => {
+            layer.forEach(item => {
+                let hasNeighbor = layer.some(o => o !== item && Math.abs(o.y - item.y) < 30);
+                item.entry._hasText = showText && !hasNeighbor;
+            });
+        });
+
+        allEventsWithY.forEach(item => {
+            let entry = item.entry; let color = getCatColor(entry.category);
+            let layer = entry._eventLayer; let pointX = centerX - 20 - layer * 20; let pointY = entry._eventY;
+
+            hitAreas.push({ cx: pointX, cy: pointY, radius: 25, entry: entry });
+
+            ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8;
+            
+            if (entry.isBirth) {
+                ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('★', pointX, pointY);
+            } else {
+                ctx.beginPath(); ctx.arc(pointX, pointY, pointRadius, 0, Math.PI * 2); ctx.fill(); 
+            }
+            ctx.shadowBlur = 0;
+
+            if (entry._hasText) {
+                let txt = entry.title;
+                if (txt.length > 22) txt = txt.substring(0, 20) + '…';
+                ctx.font = '11px sans-serif'; let textW = ctx.measureText(txt).width; let textRightX = pointX - 10;
+
+                ctx.strokeStyle = color; ctx.globalAlpha = 0.2; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(pointX, pointY); ctx.lineTo(textRightX - textW, pointY); ctx.stroke(); ctx.globalAlpha = 1;
+
+                ctx.fillStyle = '#ccc'; ctx.textAlign = 'right'; ctx.fillText(txt, textRightX, pointY + 4); 
+
+                hitAreas.push({ x1: textRightX - textW - 5, y1: pointY - 15, x2: textRightX + 5, y2: pointY + 5, entry: entry });
+            }
+        });
+
+        let startX = 0, startY = 0;
+        canvas.onpointerdown = function(e) { startX = e.clientX; startY = e.clientY; };
+        canvas.onpointerup = function(e) {
+            if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) return;
+            hideTooltip();
+            let rect = canvas.getBoundingClientRect(); let scaleX = canvas.width / rect.width; let scaleY = canvas.height / rect.height;
+            let mx = (e.clientX - rect.left) * scaleX; let my = (e.clientY - rect.top) * scaleY;
+            let bestMatch = null; let minDistance = Infinity;
+
+            for (let area of hitAreas) {
+                let dist = Infinity;
+                if (area.radius) {
+                    let dx = mx - area.cx; let dy = my - area.cy; dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < area.radius && dist < minDistance) { minDistance = dist; bestMatch = area.entry; }
+                } else {
+                    if (mx >= area.x1 && mx <= area.x2 && my >= area.y1 && my <= area.y2) {
+                        let cx = (area.x1 + area.x2) / 2; let cy = (area.y1 + area.y2) / 2;
+                        dist = Math.sqrt(Math.pow(mx - cx, 2) + Math.pow(my - cy, 2));
+                        if (dist < minDistance) { minDistance = dist; bestMatch = area.entry; }
+                    }
+                }
+            }
+            if (bestMatch) { activeTooltipEntry = bestMatch; showTooltip(bestMatch, e.clientX, e.clientY); }
+        };
+    }
+
+    function showTooltip(entry, x, y) {
+        let tip = document.getElementById('tooltip');
+        document.getElementById('ttCat').textContent = entry.category;
+        document.getElementById('ttCat').style.background = getCatColor(entry.category);
+        document.getElementById('ttTitle').textContent = entry.title;
+        document.getElementById('ttDate').textContent = formatDate(entry);
+        document.getElementById('ttDesc').textContent = entry.desc || '';
+        
+        tip.classList.add('show');
+        let tipW = tip.offsetWidth || 250; let tipH = tip.offsetHeight || 120;
+        let left = Math.min(x + 15, window.innerWidth - tipW - 15); let top = Math.min(y + 15, window.innerHeight - tipH - 15);
+        tip.style.left = left + 'px'; tip.style.top = top + 'px';
+    }
+
+    function hideTooltip() { document.getElementById('tooltip').classList.remove('show'); activeTooltipEntry = null; }
+
+    function editFromTooltip() {
+        if (!activeTooltipEntry) return;
+        let idx = entries.indexOf(activeTooltipEntry);
+        hideTooltip(); if (idx >= 0) openAddModal(idx);
+    }
+
+    function deleteFromTooltip() {
+        if (!activeTooltipEntry) return;
+        if (confirm('Удалить эту запись?')) {
+            let idx = entries.indexOf(activeTooltipEntry);
+            if (idx >= 0) { entries.splice(idx, 1); saveData(); renderCanvas(); initFiltersData(); renderList(); }
+        }
+        hideTooltip();
+    }
+
+    document.addEventListener('pointerdown', function(e) {
+        let tip = document.getElementById('tooltip');
+        if (tip.classList.contains('show')) { if (!tip.contains(e.target) && e.target.id !== 'canvas') hideTooltip(); }
+    });
+
+    function renderList() {
+        let list = document.getElementById('eventList');
+        list.innerHTML = '';
+        let filtered = getFilteredEntries();
+
+        if(filtered.length === 0) { list.innerHTML = '<div style="color:#555; padding:20px; text-align:center;">Ничего не найдено по выбранным фильтрам.</div>'; return; }
+
+        let getTimeValue = (e) => e.type === 'event' ? e.year * 10000 + (e.month || 6) * 100 + (e.day || 15) : e.startYear * 10000 + (e.startMonth || 6) * 100 + (e.startDay || 15);
+        filtered.sort((a, b) => getTimeValue(a) - getTimeValue(b));
+
+        filtered.forEach((e) => {
+            let idx = entries.indexOf(e);
+            let div = document.createElement('div');
+            div.style.cssText = 'padding:10px; border-bottom:1px solid #222; display:flex; justify-content:space-between; align-items:center;';
+            let icon = e.isBirth ? '★' : (e.type === 'event' ? '●' : '◆');
+            
+            div.innerHTML = `<span><span style="color:${getCatColor(e.category)}; font-size:1.1em;">${icon}</span> ${e.title} <span style="color:#555; font-size:0.8em;">(${formatDate(e)})</span></span> 
+                <div>
+                    <button onclick="openAddModal(${idx})" style="background:none;border:none;color:#fff;cursor:pointer; font-size:1.2em; margin-right:8px;">✎</button>
+                    <button onclick="deleteEntry(${idx})" style="background:none;border:none;color:#f00;cursor:pointer; font-size:1.2em;">✕</button>
+                </div>`;
+            list.appendChild(div);
+        });
+    }
+
+    function deleteEntry(idx) {
+        if(confirm('Удалить?')) { entries.splice(idx, 1); saveData(); renderCanvas(); initFiltersData(); renderList(); }
+    }
+
+    // Инициализация
+    loadData();
+    updateCatSelect();
+    
+    if (birthDate) {
+        renderCanvas();
+        setTimeout(centerCanvas, 100);
+    }
+    initFiltersData();
+
+    // ПРИНУДИТЕЛЬНЫЙ ПОКАЗ МОДАЛКИ (с задержкой, чтобы не мерцала)
+    setTimeout(() => {
+        let hasBirthEvent = entries.some(e => e.isBirth);
+        
+        if (!birthDate || !hasBirthEvent) {
+            birthDate = null;
+            localStorage.removeItem('ll_v2_birth');
+            document.getElementById('birthModal').classList.add('active');
+        }
+    }, 200);
+
+</script>
+
+</body></html>
